@@ -45,6 +45,15 @@ export const verificationTokenTypeEnum = pgEnum("verification_token_type", [
   "email_verification",
   "password_reset",
 ]);
+export const orderStatusEnum = pgEnum("order_status", [
+  "pending",
+  "confirmed",
+  "fulfilled",
+  "delivered",
+  "cancelled",
+]);
+export const paymentMethodEnum = pgEnum("payment_method", ["cod"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "collected", "failed"]);
 
 /** Platform-owned: authentication identity, not tenant-scoped. */
 export const users = pgTable(
@@ -147,6 +156,19 @@ export const platformAdmins = pgTable("platform_admins", {
     .notNull()
     .references(() => roles.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Platform-owned singleton - always exactly one row, seeded once in
+ * db/seed.ts and never inserted again. Enforced purely by convention (no
+ * unique-row constraint beyond "the seed script only ever runs once per
+ * environment"), so repo reads/writes never filter by id - they operate on
+ * whichever single row exists.
+ */
+export const platformSettings = pgTable("platform_settings", {
+  id: id(),
+  tenantRegistrationOpen: boolean("tenant_registration_open").notNull().default(true),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 /** Tenant-owned. Unique (tenant_id, user_id): one membership per user per tenant. */
@@ -340,6 +362,133 @@ export const productCollections = pgTable(
   ],
 );
 
+/**
+ * Tenant-owned. A customer account is store-specific (unique per
+ * tenant_id+email), not a platform-wide identity like `users` - the same
+ * email can hold separate customer records at two different stores.
+ * `passwordHash` is nullable: a row created by a guest checkout has no
+ * password until (and unless) that email later registers, at which point
+ * the existing row is adopted rather than duplicated (see checkout route).
+ */
+export const customers = pgTable(
+  "customers",
+  {
+    id: id(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    email: varchar("email", { length: 320 }).notNull(),
+    passwordHash: varchar("password_hash", { length: 255 }),
+    fullName: varchar("full_name", { length: 200 }).notNull(),
+    phone: varchar("phone", { length: 30 }),
+    /** Bumped on password change; mirrors users.tokenVersion. */
+    tokenVersion: integer("token_version").notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("customers_tenant_email_unique").on(table.tenantId, table.email),
+    index("customers_tenant_idx").on(table.tenantId),
+  ],
+);
+
+/**
+ * Tenant-owned. Contact/shipping fields are snapshotted here (not joined
+ * live from `customers`) so a later profile edit never rewrites what a past
+ * order actually shipped to. Single-store orders only in this increment -
+ * schema intentionally leaves room for a future ParentOrder/StoreSubOrder
+ * split (docs/architecture-blueprint.md §4) without a breaking migration,
+ * since today's Order already maps 1:1 to "one store's sub-order".
+ */
+export const orders = pgTable(
+  "orders",
+  {
+    id: id(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    status: orderStatusEnum("status").notNull().default("pending"),
+    subtotalCents: integer("subtotal_cents").notNull(),
+    totalCents: integer("total_cents").notNull(),
+    customerName: varchar("customer_name", { length: 200 }).notNull(),
+    customerEmail: varchar("customer_email", { length: 320 }).notNull(),
+    customerPhone: varchar("customer_phone", { length: 30 }).notNull(),
+    shippingAddressLine1: varchar("shipping_address_line1", { length: 300 }).notNull(),
+    shippingAddressLine2: varchar("shipping_address_line2", { length: 300 }),
+    shippingCity: varchar("shipping_city", { length: 150 }).notNull(),
+    shippingRegion: varchar("shipping_region", { length: 150 }),
+    shippingPostalCode: varchar("shipping_postal_code", { length: 20 }),
+    shippingCountry: varchar("shipping_country", { length: 100 }).notNull(),
+    customerNote: varchar("customer_note", { length: 1000 }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    index("orders_tenant_status_idx").on(table.tenantId, table.status),
+    index("orders_tenant_customer_idx").on(table.tenantId, table.customerId),
+  ],
+);
+
+/**
+ * Tenant-owned. Snapshotted at order time (name/sku/size/color/price) - not
+ * a live join to products/variants, which can change or be archived later.
+ */
+export const orderItems = pgTable(
+  "order_items",
+  {
+    id: id(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id),
+    variantId: uuid("variant_id")
+      .notNull()
+      .references(() => productVariants.id),
+    productNameSnapshot: varchar("product_name_snapshot", { length: 200 }).notNull(),
+    variantSkuSnapshot: varchar("variant_sku_snapshot", { length: 100 }).notNull(),
+    variantSizeSnapshot: varchar("variant_size_snapshot", { length: 50 }),
+    variantColorSnapshot: varchar("variant_color_snapshot", { length: 50 }),
+    unitPriceCents: integer("unit_price_cents").notNull(),
+    quantity: integer("quantity").notNull(),
+    lineTotalCents: integer("line_total_cents").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("order_items_order_idx").on(table.orderId)],
+);
+
+/**
+ * Tenant-owned. Deliberately its own table, not columns on `orders` -
+ * payment/payout stays separate from the core order domain (MASTER
+ * DIRECTIVE rule) so fulfillment status and payment-collected status
+ * transition independently, and a future real gateway integration is
+ * additive rather than a breaking change to the order model. 1:1 with
+ * orders for now (COD only); the unique index is what encodes that,
+ * not the shape of the table itself.
+ */
+export const orderPayments = pgTable(
+  "order_payments",
+  {
+    id: id(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id),
+    method: paymentMethodEnum("method").notNull().default("cod"),
+    status: paymentStatusEnum("status").notNull().default("pending"),
+    amountCents: integer("amount_cents").notNull(),
+    collectedAt: timestamp("collected_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("order_payments_order_unique").on(table.orderId)],
+);
+
 export const auditLogs = pgTable(
   "audit_logs",
   {
@@ -376,6 +525,30 @@ export const refreshTokens = pgTable(
   (table) => [
     index("refresh_tokens_user_idx").on(table.userId),
     uniqueIndex("refresh_tokens_token_hash_unique").on(table.tokenHash),
+  ],
+);
+
+/**
+ * Mirrors `refresh_tokens` exactly but scoped to `customers` - kept as its
+ * own table rather than making `refresh_tokens.userId` nullable/polymorphic,
+ * since customer auth is deliberately a separate system from staff auth
+ * (separate secret too - see appDependencies.jwtCustomerAccessSecret).
+ */
+export const customerRefreshTokens = pgTable(
+  "customer_refresh_tokens",
+  {
+    id: id(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    tokenHash: varchar("token_hash", { length: 255 }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("customer_refresh_tokens_customer_idx").on(table.customerId),
+    uniqueIndex("customer_refresh_tokens_token_hash_unique").on(table.tokenHash),
   ],
 );
 
@@ -442,4 +615,23 @@ export const productCollectionsRelations = relations(productCollections, ({ one 
     fields: [productCollections.collectionId],
     references: [collections.id],
   }),
+}));
+
+export const ordersRelations = relations(orders, ({ one, many }) => ({
+  customer: one(customers, { fields: [orders.customerId], references: [customers.id] }),
+  items: many(orderItems),
+  payment: one(orderPayments, { fields: [orders.id], references: [orderPayments.orderId] }),
+}));
+
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, { fields: [orderItems.orderId], references: [orders.id] }),
+  variant: one(productVariants, { fields: [orderItems.variantId], references: [productVariants.id] }),
+}));
+
+export const orderPaymentsRelations = relations(orderPayments, ({ one }) => ({
+  order: one(orders, { fields: [orderPayments.orderId], references: [orders.id] }),
+}));
+
+export const customersRelations = relations(customers, ({ many }) => ({
+  orders: many(orders),
 }));

@@ -10,7 +10,13 @@ import type {
   Collection,
   LoginRequest,
   MeResponse,
+  Order,
+  OrderListItem,
+  OrderPayment,
+  OrderWithDetails,
   Permission,
+  PlatformAnalytics,
+  PlatformSettings,
   ProductListItem,
   ProductVariant,
   ProductVariantWithInventory,
@@ -27,12 +33,18 @@ import type {
   CreateProductVariantRequestInput,
   CreateTenantRequestInput,
   InviteMembershipRequestInput,
+  ListAuditLogsQueryInput,
+  ListOrdersQueryInput,
   ListProductsQueryInput,
+  RejectOrSuspendTenantRequestInput,
   RequestPasswordResetRequestInput,
   ResetPasswordRequestInput,
   UpdateCategoryRequestInput,
   UpdateCollectionRequestInput,
   UpdateMembershipRequestInput,
+  UpdateOrderPaymentRequestInput,
+  UpdateOrderStatusRequestInput,
+  UpdatePlatformSettingsRequestInput,
   UpdateProductRequestInput,
   UpdateProductVariantRequestInput,
   UpdateStoreRequestInput,
@@ -418,9 +430,75 @@ export class ApiClient {
     return this.delete(`/tenants/${tenantId}/products/${productId}/collections/${collectionId}`);
   }
 
-  // --- Admin (used only by the future Super Admin portal, kept minimal here) ---
+  // --- Orders ---
 
-  adminListAuditLogs(tenantId: string): Promise<AuditLog[]> {
-    return this.get(`/admin/audit-logs?tenantId=${tenantId}`);
+  listOrders(tenantId: string, query: ListOrdersQueryInput = {}): Promise<OrderListItem[]> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined) params.set(key, String(value));
+    }
+    const suffix = params.toString();
+    return this.get(`/tenants/${tenantId}/orders${suffix ? `?${suffix}` : ""}`);
+  }
+
+  getOrder(tenantId: string, orderId: string): Promise<OrderWithDetails> {
+    return this.get(`/tenants/${tenantId}/orders/${orderId}`);
+  }
+
+  updateOrderStatus(tenantId: string, orderId: string, input: UpdateOrderStatusRequestInput): Promise<Order> {
+    return this.patch(`/tenants/${tenantId}/orders/${orderId}/status`, input);
+  }
+
+  updateOrderPayment(
+    tenantId: string,
+    orderId: string,
+    input: UpdateOrderPaymentRequestInput,
+  ): Promise<OrderPayment> {
+    return this.patch(`/tenants/${tenantId}/orders/${orderId}/payment`, input);
+  }
+
+  // --- Admin (Super Admin Portal) ---
+
+  adminListTenants(status?: TenantStatus): Promise<TenantSummary[]> {
+    return this.get(`/admin/tenants${status ? `?status=${status}` : ""}`);
+  }
+
+  adminApproveTenant(tenantId: string): Promise<{ id: string; status: string }> {
+    return this.post(`/admin/tenants/${tenantId}/approve`);
+  }
+
+  adminRejectTenant(
+    tenantId: string,
+    input: RejectOrSuspendTenantRequestInput = {},
+  ): Promise<{ id: string; status: string }> {
+    return this.post(`/admin/tenants/${tenantId}/reject`, input);
+  }
+
+  adminSuspendTenant(
+    tenantId: string,
+    input: RejectOrSuspendTenantRequestInput = {},
+  ): Promise<{ id: string; status: string }> {
+    return this.post(`/admin/tenants/${tenantId}/suspend`, input);
+  }
+
+  adminListAuditLogs(query: ListAuditLogsQueryInput = {}): Promise<AuditLog[]> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined) params.set(key, String(value));
+    }
+    const suffix = params.toString();
+    return this.get(`/admin/audit-logs${suffix ? `?${suffix}` : ""}`);
+  }
+
+  adminGetSettings(): Promise<PlatformSettings> {
+    return this.get("/admin/settings");
+  }
+
+  adminUpdateSettings(input: UpdatePlatformSettingsRequestInput): Promise<PlatformSettings> {
+    return this.patch("/admin/settings", input);
+  }
+
+  adminGetAnalytics(): Promise<PlatformAnalytics> {
+    return this.get("/admin/analytics");
   }
 }

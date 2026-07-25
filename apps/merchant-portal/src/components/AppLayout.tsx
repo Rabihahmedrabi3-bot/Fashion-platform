@@ -9,6 +9,7 @@ const NAV_ITEMS: AppShellNavItem[] = [
   { label: "Categories", href: "/categories" },
   { label: "Collections", href: "/collections" },
   { label: "Products", href: "/products" },
+  { label: "Orders", href: "/orders" },
   { label: "Staff", href: "/staff" },
 ];
 

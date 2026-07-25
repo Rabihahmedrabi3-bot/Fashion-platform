@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { getStore } from "../../../lib/api";
 import { CartProvider } from "../../../lib/cart";
+import { CustomerAuthProvider } from "../../../lib/customerAuth";
 import { StorefrontHeader } from "../../../components/StorefrontHeader";
 
 export default async function StoreLayout({
@@ -16,9 +17,11 @@ export default async function StoreLayout({
   if (!store) notFound();
 
   return (
-    <CartProvider storeSlug={slug}>
-      <StorefrontHeader store={store} />
-      <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
-    </CartProvider>
+    <CustomerAuthProvider storeSlug={slug}>
+      <CartProvider storeSlug={slug}>
+        <StorefrontHeader store={store} />
+        <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+      </CartProvider>
+    </CustomerAuthProvider>
   );
 }

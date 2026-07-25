@@ -22,6 +22,10 @@ export async function truncateMutableTables(db: Database): Promise<void> {
   await db.execute(sql`DELETE FROM audit_logs`);
   await db.execute(sql`DELETE FROM refresh_tokens`);
   await db.execute(sql`DELETE FROM verification_tokens`);
+  await db.execute(sql`DELETE FROM customer_refresh_tokens`);
+  await db.execute(sql`DELETE FROM order_items`);
+  await db.execute(sql`DELETE FROM order_payments`);
+  await db.execute(sql`DELETE FROM orders`);
   await db.execute(sql`DELETE FROM platform_admins`);
   await db.execute(sql`DELETE FROM tenant_memberships`);
   await db.execute(sql`DELETE FROM product_collections`);
@@ -30,9 +34,15 @@ export async function truncateMutableTables(db: Database): Promise<void> {
   await db.execute(sql`DELETE FROM products`);
   await db.execute(sql`DELETE FROM categories`);
   await db.execute(sql`DELETE FROM collections`);
+  await db.execute(sql`DELETE FROM customers`);
   await db.execute(sql`DELETE FROM stores`);
   await db.execute(sql`DELETE FROM tenants`);
   await db.execute(sql`DELETE FROM users`);
+
+  // Singleton, not deleted - a test that closes registration must not leak
+  // that into every later test's fixture helpers (createTenantForOwner etc.
+  // all go through POST /tenants).
+  await db.execute(sql`UPDATE platform_settings SET tenant_registration_open = true`);
 }
 
 export async function closeTestDb(): Promise<void> {

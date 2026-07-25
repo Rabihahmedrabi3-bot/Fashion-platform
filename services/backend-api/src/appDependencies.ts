@@ -5,6 +5,8 @@ export interface AppDependencies {
   db: Database;
   emailProvider: EmailProvider;
   jwtAccessSecret: string;
+  /** Separate from jwtAccessSecret so a customer token can never be replayed against staff/admin endpoints, or vice versa. */
+  jwtCustomerAccessSecret: string;
   refreshTokenHashPepper: string;
   emailFromAddress: string;
   /** Used to build absolute URLs for locally-stored uploads (see routes/products.ts image upload). */

@@ -9,12 +9,13 @@ import { PERMISSION_KEYS, SYSTEM_ROLE_KEYS } from "@fashion-platform/shared-type
 import type { AppDependencies } from "../appDependencies.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { isUniqueViolation } from "../lib/dbErrors.js";
-import { ConflictError, NotFoundError, UnauthorizedError } from "../lib/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from "../lib/errors.js";
 import { normalizeThemeConfig } from "../lib/themeConfig.js";
 import { validateBody } from "../lib/validate.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import { resolveTenantContext } from "../middleware/tenantContext.js";
+import { createPlatformSettingsRepo } from "../repositories/platformSettingsRepo.js";
 import { createRolesRepo } from "../repositories/rolesRepo.js";
 import { createStoresRepo } from "../repositories/storesRepo.js";
 import { createTenantsRepo, createTenantWithOwner } from "../repositories/tenantsRepo.js";
@@ -30,6 +31,11 @@ export function createTenantsRouter(deps: AppDependencies): Router {
     asyncHandler(async (req, res) => {
       if (!req.userId) throw new UnauthorizedError("authentication required");
       const { name, slug } = req.body as CreateTenantRequestInput;
+
+      const settings = await createPlatformSettingsRepo(deps.db).get();
+      if (!settings.tenantRegistrationOpen) {
+        throw new ForbiddenError("new store registration is currently closed");
+      }
 
       const ownerRole = await rolesRepo.findSystemRoleByKey(SYSTEM_ROLE_KEYS.STORE_OWNER);
       if (!ownerRole) {

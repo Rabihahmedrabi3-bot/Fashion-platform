@@ -10,6 +10,8 @@ declare global {
       tenantContext?: TenantContext;
       /** Set by middleware/requireAdminPermission.ts once platform-admin authority is resolved. */
       adminContext?: AdminContext;
+      /** Set by middleware/customerAuth.ts once a customer access token is verified, scoped to the store resolved from :slug. */
+      customerId?: string;
     }
   }
 }

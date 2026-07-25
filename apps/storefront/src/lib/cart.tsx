@@ -16,6 +16,7 @@ interface CartContextValue {
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   updateQuantity: (variantId: string, quantity: number) => void;
   removeItem: (variantId: string) => void;
+  clearCart: () => void;
   subtotalCents: number;
 }
 
@@ -72,12 +73,16 @@ export function CartProvider({ storeSlug, children }: { storeSlug: string; child
     setItems((current) => current.filter((entry) => entry.variantId !== variantId));
   }
 
+  function clearCart(): void {
+    setItems([]);
+  }
+
   const subtotalCents = useMemo(
     () => items.reduce((sum, item) => sum + item.priceCents * item.quantity, 0),
     [items],
   );
 
-  const value: CartContextValue = { items, addItem, updateQuantity, removeItem, subtotalCents };
+  const value: CartContextValue = { items, addItem, updateQuantity, removeItem, clearCart, subtotalCents };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

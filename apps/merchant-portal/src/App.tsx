@@ -5,6 +5,8 @@ import { CollectionsPage } from "./pages/CollectionsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
+import { OrderDetailPage } from "./pages/OrderDetailPage";
+import { OrdersPage } from "./pages/OrdersPage";
 import { ProductFormPage } from "./pages/ProductFormPage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { RegisterPage } from "./pages/RegisterPage";
@@ -29,6 +31,8 @@ export function App() {
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/products/new" element={<ProductFormPage />} />
         <Route path="/products/:productId" element={<ProductFormPage />} />
+        <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/orders/:orderId" element={<OrderDetailPage />} />
         <Route path="/staff" element={<StaffPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

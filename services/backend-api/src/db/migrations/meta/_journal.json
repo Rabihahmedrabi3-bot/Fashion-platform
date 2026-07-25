@@ -15,6 +15,34 @@
       "when": 1784983705663,
       "tag": "0001_strong_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785004822750,
+      "tag": "0002_careful_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785005100539,
+      "tag": "0003_overconfident_oracle",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785012335134,
+      "tag": "0004_curved_eternals",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785012551098,
+      "tag": "0005_mute_wraith",
+      "breakpoints": true
     }
   ]
 }

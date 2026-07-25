@@ -8,6 +8,7 @@ import { z } from "zod";
 const emailSchema = z.string().trim().toLowerCase().email();
 const passwordSchema = z.string().min(8).max(200);
 const uuidSchema = z.string().uuid();
+const phoneSchema = z.string().trim().min(3).max(30);
 const slugSchema = z
   .string()
   .trim()
@@ -291,3 +292,76 @@ export const listAuditLogsQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).optional(),
 });
 export type ListAuditLogsQueryInput = z.infer<typeof listAuditLogsQuerySchema>;
+
+export const updatePlatformSettingsRequestSchema = z.object({
+  tenantRegistrationOpen: z.boolean(),
+});
+export type UpdatePlatformSettingsRequestInput = z.infer<typeof updatePlatformSettingsRequestSchema>;
+
+// --- Customer auth (public, per-store - deliberately separate from staff auth schemas above) ---
+
+export const customerRegisterRequestSchema = z.object({
+  email: emailSchema,
+  password: passwordSchema,
+  fullName: z.string().trim().min(1).max(200),
+  phone: phoneSchema.nullable().optional(),
+});
+export type CustomerRegisterRequestInput = z.infer<typeof customerRegisterRequestSchema>;
+
+export const customerLoginRequestSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1),
+});
+export type CustomerLoginRequestInput = z.infer<typeof customerLoginRequestSchema>;
+
+// Refresh/logout reuse refreshRequestSchema/logoutRequestSchema above - same {refreshToken} shape,
+// no need for customer-specific duplicates.
+
+// --- Checkout ---
+
+export const checkoutRequestSchema = z.object({
+  customerName: z.string().trim().min(1).max(200),
+  customerEmail: emailSchema,
+  customerPhone: phoneSchema,
+  shippingAddressLine1: z.string().trim().min(1).max(300),
+  shippingAddressLine2: z.string().trim().max(300).nullable().optional(),
+  shippingCity: z.string().trim().min(1).max(150),
+  shippingRegion: z.string().trim().max(150).nullable().optional(),
+  shippingPostalCode: z.string().trim().max(20).nullable().optional(),
+  shippingCountry: z.string().trim().min(1).max(100),
+  customerNote: z.string().trim().max(1000).nullable().optional(),
+  items: z
+    .array(
+      z.object({
+        variantId: uuidSchema,
+        quantity: z.number().int().min(1).max(999),
+      }),
+    )
+    .min(1, "at least one item is required"),
+});
+export type CheckoutRequestInput = z.infer<typeof checkoutRequestSchema>;
+
+// --- Orders (merchant-side) ---
+
+export const listOrdersQuerySchema = z.object({
+  status: z.enum(["pending", "confirmed", "fulfilled", "delivered", "cancelled"]).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+export type ListOrdersQueryInput = z.infer<typeof listOrdersQuerySchema>;
+
+export const orderParamsSchema = z.object({
+  id: uuidSchema,
+  orderId: uuidSchema,
+});
+export type OrderParamsInput = z.infer<typeof orderParamsSchema>;
+
+export const updateOrderStatusRequestSchema = z.object({
+  status: z.enum(["pending", "confirmed", "fulfilled", "delivered", "cancelled"]),
+});
+export type UpdateOrderStatusRequestInput = z.infer<typeof updateOrderStatusRequestSchema>;
+
+export const updateOrderPaymentRequestSchema = z.object({
+  status: z.enum(["collected", "failed"]),
+});
+export type UpdateOrderPaymentRequestInput = z.infer<typeof updateOrderPaymentRequestSchema>;

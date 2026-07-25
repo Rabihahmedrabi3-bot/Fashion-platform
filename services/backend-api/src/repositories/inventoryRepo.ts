@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import type { Database } from "../db/client.js";
 import { inventory } from "../db/schema.js";
 import type { TenantScope } from "./tenantScope.js";
@@ -32,6 +32,38 @@ export function createInventoryRepo(db: Database, scope: TenantScope) {
       const [row] = await db
         .update(inventory)
         .set({ quantity, updatedAt: new Date() })
+        .where(and(eq(inventory.variantId, variantId), eq(inventory.tenantId, scope.tenantId)))
+        .returning();
+      return row ?? null;
+    },
+
+    /**
+     * Atomic conditional decrement for checkout: the WHERE clause itself
+     * enforces `quantity >= amount`, so two concurrent checkouts racing on
+     * the last unit can't both succeed - the loser gets no row back rather
+     * than a negative quantity. Never call setQuantity for this; that's an
+     * unconditional absolute-set and unsafe under concurrency.
+     */
+    async decrementIfAvailable(variantId: string, amount: number): Promise<InventoryRow | null> {
+      const [row] = await db
+        .update(inventory)
+        .set({ quantity: sql`${inventory.quantity} - ${amount}`, updatedAt: new Date() })
+        .where(
+          and(
+            eq(inventory.variantId, variantId),
+            eq(inventory.tenantId, scope.tenantId),
+            gte(inventory.quantity, amount),
+          ),
+        )
+        .returning();
+      return row ?? null;
+    },
+
+    /** Restocks on order cancellation - the inverse of decrementIfAvailable, no availability check needed. */
+    async restock(variantId: string, amount: number): Promise<InventoryRow | null> {
+      const [row] = await db
+        .update(inventory)
+        .set({ quantity: sql`${inventory.quantity} + ${amount}`, updatedAt: new Date() })
         .where(and(eq(inventory.variantId, variantId), eq(inventory.tenantId, scope.tenantId)))
         .returning();
       return row ?? null;

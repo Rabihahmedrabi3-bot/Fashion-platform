@@ -21,6 +21,7 @@ export function buildTestApp(): TestContext {
     db: getTestDb(),
     emailProvider,
     jwtAccessSecret: "test-access-secret-not-for-production-use-only",
+    jwtCustomerAccessSecret: "test-customer-access-secret-not-for-production-use-only",
     refreshTokenHashPepper: "test-refresh-pepper-not-for-production-use-only",
     emailFromAddress: "no-reply@test.local",
     publicApiBaseUrl: "http://localhost:4000",

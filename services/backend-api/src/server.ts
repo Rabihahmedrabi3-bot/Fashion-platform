@@ -3,12 +3,15 @@ import express, { type Express } from "express";
 import rateLimit from "express-rate-limit";
 import type { AppDependencies } from "./appDependencies.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { createAdminAnalyticsRouter } from "./routes/admin/analytics.js";
 import { createAdminAuditLogsRouter } from "./routes/admin/auditLogs.js";
+import { createAdminSettingsRouter } from "./routes/admin/settings.js";
 import { createAdminTenantsRouter } from "./routes/admin/tenants.js";
 import { createAuthRouter } from "./routes/auth.js";
 import { createCategoriesRouter } from "./routes/categories.js";
 import { createCollectionsRouter } from "./routes/collections.js";
 import { createMembershipsRouter } from "./routes/memberships.js";
+import { createOrdersRouter } from "./routes/orders.js";
 import { createProductsRouter } from "./routes/products.js";
 import { createPermissionsRouter, createRolesRouter } from "./routes/rolesPermissions.js";
 import { createPublicStoreRouter } from "./routes/publicStore.js";
@@ -48,11 +51,14 @@ export function createServer(deps: AppDependencies): Express {
   app.use("/tenants", createCategoriesRouter(deps));
   app.use("/tenants", createCollectionsRouter(deps));
   app.use("/tenants", createProductsRouter(deps));
+  app.use("/tenants", createOrdersRouter(deps));
   app.use("/roles", createRolesRouter(deps));
   app.use("/permissions", createPermissionsRouter(deps));
   app.use("/public/stores", createPublicStoreRouter(deps));
   app.use("/admin/tenants", createAdminTenantsRouter(deps));
   app.use("/admin/audit-logs", createAdminAuditLogsRouter(deps));
+  app.use("/admin/settings", createAdminSettingsRouter(deps));
+  app.use("/admin/analytics", createAdminAnalyticsRouter(deps));
 
   app.use(errorHandler);
 

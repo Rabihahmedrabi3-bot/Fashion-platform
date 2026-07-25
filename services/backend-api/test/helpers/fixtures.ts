@@ -80,6 +80,13 @@ export async function makePlatformAdmin(userId: string): Promise<void> {
   await db.insert(platformAdmins).values({ userId, roleId: role.id }).onConflictDoNothing();
 }
 
+/** Registers a fresh verified user and grants them platform-admin authority in one call. */
+export async function registerPlatformAdmin(app: Express, emailProvider: TestEmailProvider): Promise<RegisteredUser> {
+  const admin = await registerVerifiedUser(app, emailProvider);
+  await makePlatformAdmin(admin.id);
+  return admin;
+}
+
 /** Approves `tenantId` (status pending_approval -> active) via a freshly-bootstrapped admin - needed for anything that touches the public storefront, since it only ever serves active stores. */
 export async function approveTenant(
   app: Express,
@@ -92,6 +99,71 @@ export async function approveTenant(
     .post(`/admin/tenants/${tenantId}/approve`)
     .set("Authorization", `Bearer ${admin.accessToken}`)
     .expect(200);
+}
+
+export interface CheckoutReadyStore {
+  owner: RegisteredUser;
+  tenantId: string;
+  slug: string;
+  productId: string;
+  variantId: string;
+  sku: string;
+  priceCents: number;
+}
+
+/** An approved store with one active product/variant/inventory row - the common setup for checkout/orders tests. */
+export async function setupCheckoutReadyStore(
+  app: Express,
+  emailProvider: TestEmailProvider,
+  overrides: Partial<{ priceCents: number; quantity: number }> = {},
+): Promise<CheckoutReadyStore> {
+  const priceCents = overrides.priceCents ?? 4900;
+  const quantity = overrides.quantity ?? 10;
+
+  const owner = await registerVerifiedUser(app, emailProvider);
+  const { tenantId, slug } = await createTenantForOwner(app, owner);
+  await approveTenant(app, emailProvider, tenantId);
+
+  const productRes = await request(app)
+    .post(`/tenants/${tenantId}/products`)
+    .set("Authorization", `Bearer ${owner.accessToken}`)
+    .send({ name: "Checkout Test Product", slug: uniqueSlug("checkout-product") })
+    .expect(201);
+  const productId = productRes.body.id as string;
+
+  await request(app)
+    .patch(`/tenants/${tenantId}/products/${productId}`)
+    .set("Authorization", `Bearer ${owner.accessToken}`)
+    .send({ status: "active" })
+    .expect(200);
+
+  const sku = uniqueSlug("SKU");
+  const variantRes = await request(app)
+    .post(`/tenants/${tenantId}/products/${productId}/variants`)
+    .set("Authorization", `Bearer ${owner.accessToken}`)
+    .send({ sku, priceCents })
+    .expect(201);
+  const variantId = variantRes.body.id as string;
+
+  await request(app)
+    .patch(`/tenants/${tenantId}/products/${productId}/variants/${variantId}/inventory`)
+    .set("Authorization", `Bearer ${owner.accessToken}`)
+    .send({ quantity })
+    .expect(200);
+
+  return { owner, tenantId, slug, productId, variantId, sku, priceCents };
+}
+
+export function validCheckoutBody(variantId: string, quantity = 1): Record<string, unknown> {
+  return {
+    customerName: "Jamie Customer",
+    customerEmail: `${uniqueSlug("customer")}@example.com`,
+    customerPhone: "+961 71 234 567",
+    shippingAddressLine1: "123 Hamra Street",
+    shippingCity: "Beirut",
+    shippingCountry: "Lebanon",
+    items: [{ variantId, quantity }],
+  };
 }
 
 /** Invites `staff` into `tenantId` under `roleKey` and immediately activates the membership, using the Owner's token. */

@@ -19,6 +19,7 @@ const deps: AppDependencies = {
   db,
   emailProvider: new DevConsoleEmailProvider(),
   jwtAccessSecret: requireEnv("JWT_ACCESS_SECRET"),
+  jwtCustomerAccessSecret: requireEnv("JWT_CUSTOMER_ACCESS_SECRET"),
   refreshTokenHashPepper: requireEnv("REFRESH_TOKEN_HASH_PEPPER"),
   emailFromAddress: process.env.EMAIL_FROM_ADDRESS ?? "no-reply@platform.local",
   publicApiBaseUrl: process.env.PUBLIC_API_BASE_URL ?? "http://localhost:4000",

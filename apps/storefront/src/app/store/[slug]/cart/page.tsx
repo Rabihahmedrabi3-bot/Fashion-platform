@@ -54,9 +54,9 @@ export default function CartPage() {
         <span className="text-sm font-medium text-slate-700">Subtotal</span>
         <span className="text-lg font-semibold text-slate-900">${(subtotalCents / 100).toFixed(2)}</span>
       </Card>
-      <p className="text-sm text-slate-500">
-        Checkout isn&apos;t available yet - it&apos;s coming in a future release.
-      </p>
+      <Link href={`/store/${slug}/checkout`} className="self-end">
+        <Button>Checkout</Button>
+      </Link>
     </div>
   );
 }

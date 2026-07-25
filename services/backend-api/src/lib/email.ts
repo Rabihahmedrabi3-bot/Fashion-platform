@@ -36,3 +36,24 @@ export function buildPasswordResetEmail(rawToken: string): Pick<EmailMessage, "s
     body: `Password reset token: ${rawToken}\n\nSubmit this via POST /auth/reset-password. This token expires in 1 hour.`,
   };
 }
+
+export function buildOrderConfirmationEmail(
+  storeName: string,
+  orderId: string,
+  totalCents: number,
+): Pick<EmailMessage, "subject" | "body"> {
+  return {
+    subject: `Your order from ${storeName} is confirmed`,
+    body: `Thanks for your order! Order ${orderId} totals $${(totalCents / 100).toFixed(2)}, to be paid by cash on delivery.`,
+  };
+}
+
+export function buildNewOrderNotificationEmail(
+  orderId: string,
+  totalCents: number,
+): Pick<EmailMessage, "subject" | "body"> {
+  return {
+    subject: "New order received",
+    body: `A new order (${orderId}) was placed for $${(totalCents / 100).toFixed(2)}. Check the Orders page in your Merchant Portal.`,
+  };
+}

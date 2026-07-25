@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { SYSTEM_ROLE_KEYS, PERMISSION_KEYS, type PermissionKey } from "@fashion-platform/shared-types";
 import { SYSTEM_ROLE_PERMISSIONS } from "@fashion-platform/domain-shared";
 import { createDatabase } from "./client.js";
-import { permissions, platformAdmins, rolePermissions, roles, users } from "./schema.js";
+import { permissions, platformAdmins, platformSettings, rolePermissions, roles, users } from "./schema.js";
 
 const ROLE_NAMES: Record<string, string> = {
   [SYSTEM_ROLE_KEYS.SUPER_ADMIN]: "Super Admin",
@@ -98,6 +98,26 @@ const PERMISSION_DEFINITIONS: Record<
     action: "update",
     description: "Adjust variant stock levels",
   },
+  [PERMISSION_KEYS.ORDER_READ]: {
+    resource: "order",
+    action: "read",
+    description: "Read orders, order items, and payment status",
+  },
+  [PERMISSION_KEYS.ORDER_UPDATE]: {
+    resource: "order",
+    action: "update",
+    description: "Update order fulfillment and payment status",
+  },
+  [PERMISSION_KEYS.PLATFORM_SETTINGS_READ]: {
+    resource: "platform_settings",
+    action: "read",
+    description: "Read platform-wide settings",
+  },
+  [PERMISSION_KEYS.PLATFORM_SETTINGS_UPDATE]: {
+    resource: "platform_settings",
+    action: "update",
+    description: "Update platform-wide settings",
+  },
 };
 
 /** Idempotent: seeds system roles, permissions, role-permission grants, and one bootstrap Super Admin. */
@@ -186,6 +206,11 @@ export async function seed(
           .values({ userId, roleId: superAdminRoleId })
           .onConflictDoNothing();
       }
+    }
+
+    const [existingSettings] = await db.select({ id: platformSettings.id }).from(platformSettings).limit(1);
+    if (!existingSettings) {
+      await db.insert(platformSettings).values({});
     }
   } finally {
     await pool.end();

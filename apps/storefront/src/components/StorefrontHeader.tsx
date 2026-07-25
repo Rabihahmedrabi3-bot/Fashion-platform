@@ -3,9 +3,11 @@
 import Link from "next/link";
 import type { PublicStoreResponse } from "@fashion-platform/shared-types";
 import { useCart } from "../lib/cart";
+import { useCustomerAuth } from "../lib/customerAuth";
 
 export function StorefrontHeader({ store }: { store: PublicStoreResponse }) {
   const { items } = useCart();
+  const { status, customer } = useCustomerAuth();
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -21,6 +23,9 @@ export function StorefrontHeader({ store }: { store: PublicStoreResponse }) {
       </Link>
       <nav className="flex items-center gap-4 text-sm">
         <Link href={`/store/${store.slug}/products`}>Shop</Link>
+        <Link href={`/store/${store.slug}/account/orders`}>
+          {status === "authenticated" ? (customer?.fullName ?? "Account") : "Log in"}
+        </Link>
         <Link href={`/store/${store.slug}/cart`}>Cart ({itemCount})</Link>
       </nav>
     </header>

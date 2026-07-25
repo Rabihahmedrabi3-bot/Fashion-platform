@@ -11,6 +11,9 @@ export type VerificationTokenType = "email_verification" | "password_reset";
 export type AuditActorType = "user" | "system";
 export type ProductStatus = "draft" | "active" | "archived";
 export type ProductVariantStatus = "active" | "archived";
+export type OrderStatus = "pending" | "confirmed" | "fulfilled" | "delivered" | "cancelled";
+export type PaymentMethod = "cod";
+export type PaymentStatus = "pending" | "collected" | "failed";
 
 export interface User {
   id: string;
@@ -241,6 +244,10 @@ export const PERMISSION_KEYS = {
   CATALOG_DELETE: "catalog:delete",
   INVENTORY_READ: "inventory:read",
   INVENTORY_UPDATE: "inventory:update",
+  ORDER_READ: "order:read",
+  ORDER_UPDATE: "order:update",
+  PLATFORM_SETTINGS_READ: "platform_settings:read",
+  PLATFORM_SETTINGS_UPDATE: "platform_settings:update",
 } as const;
 export type PermissionKey = (typeof PERMISSION_KEYS)[keyof typeof PERMISSION_KEYS];
 
@@ -278,6 +285,8 @@ export interface MeResponse {
     roleKey: string;
     membershipStatus: TenantMembershipStatus;
   }>;
+  /** Computed via resolveAdminContext - true iff this user holds a platform_admins row. */
+  isPlatformAdmin: boolean;
 }
 
 export interface PublicStoreResponse {
@@ -305,4 +314,157 @@ export interface PublicProductSummary {
 
 export interface PublicProductDetail extends Product {
   variants: Array<Pick<ProductVariant, "id" | "sku" | "size" | "color" | "priceCents">>;
+}
+
+/** Tenant-owned. Never exposes passwordHash/tokenVersion over the API. */
+export interface Customer {
+  id: string;
+  tenantId: string;
+  email: string;
+  fullName: string;
+  phone: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Snapshotted at order time (name/sku/size/color/price), not a live join to
+ * products/variants - a variant can be edited or archived after the fact
+ * without altering what a past order says it contained.
+ */
+export interface OrderItem {
+  id: string;
+  orderId: string;
+  tenantId: string;
+  variantId: string;
+  productNameSnapshot: string;
+  variantSkuSnapshot: string;
+  variantSizeSnapshot: string | null;
+  variantColorSnapshot: string | null;
+  unitPriceCents: number;
+  quantity: number;
+  lineTotalCents: number;
+  createdAt: string;
+}
+
+/**
+ * Contact/shipping fields are snapshotted onto the order (not joined live
+ * from `customers`) so editing a customer profile later never rewrites what
+ * a past order shipped to.
+ */
+export interface Order {
+  id: string;
+  tenantId: string;
+  customerId: string;
+  status: OrderStatus;
+  subtotalCents: number;
+  totalCents: number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddressLine1: string;
+  shippingAddressLine2: string | null;
+  shippingCity: string;
+  shippingRegion: string | null;
+  shippingPostalCode: string | null;
+  shippingCountry: string;
+  customerNote: string | null;
+  cancelledAt: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Kept as its own entity/table (not columns on `orders`) so payment state
+ * transitions independently of fulfillment state, and a future real gateway
+ * can slot in without an order-model change.
+ */
+export interface OrderPayment {
+  id: string;
+  orderId: string;
+  tenantId: string;
+  method: PaymentMethod;
+  status: PaymentStatus;
+  amountCents: number;
+  collectedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderWithDetails extends Order {
+  items: OrderItem[];
+  payment: OrderPayment;
+}
+
+/** Returned by the orders list endpoint - an item count, not the full item/payment payload per row. */
+export interface OrderListItem extends Order {
+  itemCount: number;
+}
+
+export interface CheckoutItemInput {
+  variantId: string;
+  quantity: number;
+}
+
+export interface CheckoutRequest {
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddressLine1: string;
+  shippingAddressLine2?: string | null | undefined;
+  shippingCity: string;
+  shippingRegion?: string | null | undefined;
+  shippingPostalCode?: string | null | undefined;
+  shippingCountry: string;
+  customerNote?: string | null | undefined;
+  items: CheckoutItemInput[];
+}
+
+export interface CustomerRegisterRequest {
+  email: string;
+  password: string;
+  fullName: string;
+  phone?: string | null | undefined;
+}
+
+export interface CustomerLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface CustomerMeResponse {
+  customer: Pick<Customer, "id" | "email" | "fullName" | "phone">;
+}
+
+export interface UpdateOrderStatusRequest {
+  status: OrderStatus;
+}
+
+export interface UpdateOrderPaymentRequest {
+  status: Extract<PaymentStatus, "collected" | "failed">;
+}
+
+/** Singleton row - platform-wide, not tenant-scoped. */
+export interface PlatformSettings {
+  tenantRegistrationOpen: boolean;
+  updatedAt: string;
+}
+
+export interface UpdatePlatformSettingsRequest {
+  tenantRegistrationOpen: boolean;
+}
+
+export interface PlatformAnalytics {
+  tenantsByStatus: Record<TenantStatus, number>;
+  ordersByStatus: Record<OrderStatus, number>;
+  totalOrders: number;
+  totalRevenueCents: number;
+  topProducts: Array<{
+    productName: string;
+    tenantId: string;
+    tenantName: string;
+    quantitySold: number;
+    revenueCents: number;
+  }>;
 }

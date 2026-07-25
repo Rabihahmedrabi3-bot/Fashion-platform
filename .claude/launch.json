@@ -18,6 +18,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace=@fashion-platform/storefront"],
       "port": 3000
+    },
+    {
+      "name": "admin-portal",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@fashion-platform/admin-portal"],
+      "port": 5174
     }
   ]
 }
