@@ -1,4 +1,14 @@
 // @fashion-platform/ui
-// Intentionally empty scaffold. Populated starting in the release where
-// this package is first needed (see the repository README for the mapping).
-export {};
+// Small shared component set for the internal portals (Merchant, Admin).
+// Styled with Tailwind utility classes; Tailwind CSS generation itself
+// happens once in each consuming app (its tailwind.config content globs
+// include this package's source), not here.
+
+export * from "./components/AppShell";
+export * from "./components/Badge";
+export * from "./components/Button";
+export * from "./components/Card";
+export * from "./components/FormField";
+export * from "./components/Input";
+export * from "./components/Select";
+export * from "./components/Table";

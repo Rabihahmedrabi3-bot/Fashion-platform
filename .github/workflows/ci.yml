@@ -8,6 +8,23 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fashion_platform_app
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: fashion_platform_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fashion_platform_app"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Only the test step needs this - it's what globalSetup.ts migrates and seeds.
+      TEST_DATABASE_URL: postgresql://fashion_platform_app:ci_password@localhost:5432/fashion_platform_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

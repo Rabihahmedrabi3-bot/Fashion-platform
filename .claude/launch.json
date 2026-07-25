@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@fashion-platform/backend-api"],
+      "port": 4000
+    },
+    {
+      "name": "merchant-portal",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@fashion-platform/merchant-portal"],
+      "port": 5173
+    },
+    {
+      "name": "storefront",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@fashion-platform/storefront"],
+      "port": 3000
+    }
+  ]
+}

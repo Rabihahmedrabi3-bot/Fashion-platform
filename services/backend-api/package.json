@@ -7,16 +7,36 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/run-migrate.ts",
+    "db:seed": "tsx src/db/run-seed.ts"
   },
   "dependencies": {
-    "express": "^4.21.0"
+    "@fashion-platform/domain-shared": "*",
+    "@fashion-platform/shared-types": "*",
+    "@fashion-platform/validation": "*",
+    "@node-rs/argon2": "^2.0.2",
+    "cors": "^2.8.5",
+    "drizzle-orm": "^0.36.4",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.4.1",
+    "file-type": "^22.0.1",
+    "jose": "^5.9.6",
+    "multer": "^2.2.0",
+    "pg": "^8.13.1",
+    "uuid": "^11.0.3",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "tsx": "^4.19.0",
+    "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
-    "supertest": "^7.0.0",
-    "@types/supertest": "^6.0.0"
+    "@types/multer": "^2.0.0",
+    "@types/pg": "^8.11.10",
+    "@types/supertest": "^6.0.0",
+    "drizzle-kit": "^0.28.1",
+    "supertest": "^7.0.0"
   }
 }

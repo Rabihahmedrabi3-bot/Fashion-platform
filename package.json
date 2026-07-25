@@ -26,5 +26,11 @@
     "prettier": "^3.3.3",
     "vitest": "^2.1.2",
     "@types/node": "^22.7.0"
+  },
+  "allowScripts": {
+    "esbuild@0.18.20": true,
+    "esbuild@0.19.12": true,
+    "esbuild@0.21.5": true,
+    "esbuild@0.28.1": true
   }
 }
