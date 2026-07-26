@@ -28,6 +28,9 @@ export class R2ImageStorage implements ImageStorage {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,
       },
+      // The AWS SDK v3 sends flexible-checksum headers by default, which R2
+      // rejects with a 400 InvalidArgument - R2 isn't fully S3-compatible here.
+      requestChecksumCalculation: "WHEN_REQUIRED",
     });
     this.bucketName = config.bucketName;
     this.publicBaseUrl = config.publicBaseUrl.replace(/\/$/, "");
