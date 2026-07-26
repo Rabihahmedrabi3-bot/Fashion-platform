@@ -39,9 +39,6 @@ export function createServer(deps: AppDependencies): Express {
   );
   app.use(express.json());
 
-  // Static assets only - nothing here ever executes upload content server-side.
-  app.use("/uploads", express.static(deps.uploadsDir));
-
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok" });
   });

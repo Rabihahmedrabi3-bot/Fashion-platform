@@ -1,8 +1,8 @@
 import "./loadEnv.js";
-import path from "node:path";
 import type { AppDependencies } from "./appDependencies.js";
 import { createDatabase } from "./db/client.js";
 import { DevConsoleEmailProvider } from "./lib/email.js";
+import { R2ImageStorage } from "./lib/r2ImageStorage.js";
 import { createServer } from "./server.js";
 
 function requireEnv(name: string): string {
@@ -22,8 +22,13 @@ const deps: AppDependencies = {
   jwtCustomerAccessSecret: requireEnv("JWT_CUSTOMER_ACCESS_SECRET"),
   refreshTokenHashPepper: requireEnv("REFRESH_TOKEN_HASH_PEPPER"),
   emailFromAddress: process.env.EMAIL_FROM_ADDRESS ?? "no-reply@platform.local",
-  publicApiBaseUrl: process.env.PUBLIC_API_BASE_URL ?? "http://localhost:4000",
-  uploadsDir: path.resolve(process.cwd(), "uploads"),
+  imageStorage: new R2ImageStorage({
+    accountId: requireEnv("R2_ACCOUNT_ID"),
+    accessKeyId: requireEnv("R2_ACCESS_KEY_ID"),
+    secretAccessKey: requireEnv("R2_SECRET_ACCESS_KEY"),
+    bucketName: requireEnv("R2_BUCKET_NAME"),
+    publicBaseUrl: requireEnv("R2_PUBLIC_BASE_URL"),
+  }),
 };
 
 const port = Number(process.env.PORT ?? 4000);

@@ -24,8 +24,8 @@ async function createProduct(app: Express, accessToken: string, tenantId: string
 }
 
 describe("product image upload", () => {
-  it("uploads a real image, updates imageUrl, and the file is fetchable from where imageUrl points", async () => {
-    const { app, emailProvider } = buildTestApp();
+  it("uploads a real image, updates imageUrl, and records the upload against the products folder", async () => {
+    const { app, emailProvider, imageStorage } = buildTestApp();
     const owner = await registerVerifiedUser(app, emailProvider);
     const { tenantId } = await createTenantForOwner(app, owner);
     const productId = await createProduct(app, owner.accessToken, tenantId);
@@ -35,12 +35,8 @@ describe("product image upload", () => {
       .set("Authorization", `Bearer ${owner.accessToken}`)
       .attach("image", TINY_PNG, "photo.png");
     expect(uploadRes.status).toBe(200);
-    expect(uploadRes.body.imageUrl).toMatch(/\/uploads\/products\/.+\.png$/);
-
-    const servedPath = new URL(uploadRes.body.imageUrl).pathname;
-    const fileRes = await request(app).get(servedPath);
-    expect(fileRes.status).toBe(200);
-    expect(fileRes.headers["content-type"]).toContain("image/png");
+    expect(uploadRes.body.imageUrl).toMatch(/^https:\/\/test-image-storage\.local\/products\/.+\.png$/);
+    expect(imageStorage.uploaded).toContainEqual({ folder: "products", extension: "png" });
   });
 
   it("rejects a file whose real content doesn't match an image (magic-byte check), even with a .png name", async () => {

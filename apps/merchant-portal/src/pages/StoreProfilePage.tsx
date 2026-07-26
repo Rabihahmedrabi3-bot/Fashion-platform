@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, FormField, Input } from "@fashion-platform/ui";
 import { ApiError } from "@fashion-platform/api-client";
@@ -13,27 +13,23 @@ export function StoreProfilePage() {
     queryFn: () => apiClient.getStore(tenantId),
   });
 
-  const [logoUrl, setLogoUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const [marketplaceEligible, setMarketplaceEligible] = useState(false);
   const [marketplaceError, setMarketplaceError] = useState<string | null>(null);
 
+  const [logoError, setLogoError] = useState<string | null>(null);
+
   useEffect(() => {
     if (storeQuery.data) {
-      setLogoUrl(storeQuery.data.brandingLogoUrl ?? "");
       setPrimaryColor(storeQuery.data.brandingPrimaryColor ?? "");
       setMarketplaceEligible(storeQuery.data.marketplaceEligible);
     }
   }, [storeQuery.data]);
 
   const updateMutation = useMutation({
-    mutationFn: () =>
-      apiClient.updateStore(tenantId, {
-        brandingLogoUrl: logoUrl || null,
-        brandingPrimaryColor: primaryColor || null,
-      }),
+    mutationFn: () => apiClient.updateStore(tenantId, { brandingPrimaryColor: primaryColor || null }),
     onSuccess: () => {
       setError(null);
       void queryClient.invalidateQueries({ queryKey: ["store", tenantId] });
@@ -44,6 +40,21 @@ export function StoreProfilePage() {
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
     await updateMutation.mutateAsync();
+  }
+
+  const uploadLogoMutation = useMutation({
+    mutationFn: (file: File) => apiClient.uploadStoreLogo(tenantId, file),
+    onSuccess: () => {
+      setLogoError(null);
+      void queryClient.invalidateQueries({ queryKey: ["store", tenantId] });
+    },
+    onError: (err) => setLogoError(err instanceof ApiError ? err.message : "Could not upload logo."),
+  });
+
+  function handleLogoChange(event: ChangeEvent<HTMLInputElement>): void {
+    const file = event.target.files?.[0];
+    if (file) uploadLogoMutation.mutate(file);
+    event.target.value = "";
   }
 
   const marketplaceMutation = useMutation({
@@ -70,16 +81,35 @@ export function StoreProfilePage() {
         <p className="text-slate-900">{storeQuery.data?.status ?? "…"}</p>
       </Card>
       <Card>
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">Logo</h2>
+        <div className="flex items-center gap-4">
+          {storeQuery.data?.brandingLogoUrl ? (
+            <img
+              src={storeQuery.data.brandingLogoUrl}
+              alt="Store logo"
+              className="h-24 w-24 rounded-md border border-slate-200 object-cover"
+            />
+          ) : (
+            <div className="flex h-24 w-24 items-center justify-center rounded-md border border-dashed border-slate-300 text-xs text-slate-400">
+              No logo
+            </div>
+          )}
+          <div>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleLogoChange}
+              disabled={uploadLogoMutation.isPending}
+              className="text-sm text-slate-700"
+            />
+            {uploadLogoMutation.isPending ? <p className="mt-1 text-xs text-slate-500">Uploading…</p> : null}
+            {logoError ? <p className="mt-1 text-sm text-red-600">{logoError}</p> : null}
+          </div>
+        </div>
+      </Card>
+      <Card>
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Branding</h2>
         <form onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-4">
-          <FormField label="Logo URL" htmlFor="logoUrl">
-            <Input
-              id="logoUrl"
-              value={logoUrl}
-              onChange={(event) => setLogoUrl(event.target.value)}
-              placeholder="https://…"
-            />
-          </FormField>
           <FormField label="Primary color (hex)" htmlFor="primaryColor">
             <Input
               id="primaryColor"

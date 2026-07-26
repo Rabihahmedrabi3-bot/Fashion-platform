@@ -1,5 +1,6 @@
 import type { Database } from "./db/client.js";
 import type { EmailProvider } from "./lib/email.js";
+import type { ImageStorage } from "./lib/imageStorage.js";
 
 export interface AppDependencies {
   db: Database;
@@ -9,8 +10,6 @@ export interface AppDependencies {
   jwtCustomerAccessSecret: string;
   refreshTokenHashPepper: string;
   emailFromAddress: string;
-  /** Used to build absolute URLs for locally-stored uploads (see routes/products.ts image upload). */
-  publicApiBaseUrl: string;
-  /** Absolute path to the directory uploaded product images are written to and served from. */
-  uploadsDir: string;
+  /** Where uploaded images (product photos, store logo, theme hero image) are stored. */
+  imageStorage: ImageStorage;
 }

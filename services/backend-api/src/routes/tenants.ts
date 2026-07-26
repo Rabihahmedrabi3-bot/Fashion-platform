@@ -9,7 +9,8 @@ import { PERMISSION_KEYS, SYSTEM_ROLE_KEYS } from "@fashion-platform/shared-type
 import type { AppDependencies } from "../appDependencies.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { isUniqueViolation } from "../lib/dbErrors.js";
-import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from "../lib/errors.js";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from "../lib/errors.js";
+import { imageUploadMiddleware, validateImageBuffer } from "../lib/imageUpload.js";
 import { normalizeThemeConfig } from "../lib/themeConfig.js";
 import { validateBody } from "../lib/validate.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -17,8 +18,21 @@ import { requirePermission } from "../middleware/requirePermission.js";
 import { resolveTenantContext } from "../middleware/tenantContext.js";
 import { createPlatformSettingsRepo } from "../repositories/platformSettingsRepo.js";
 import { createRolesRepo } from "../repositories/rolesRepo.js";
-import { createStoresRepo } from "../repositories/storesRepo.js";
+import { createStoresRepo, type StoreRow } from "../repositories/storesRepo.js";
 import { createTenantsRepo, createTenantWithOwner } from "../repositories/tenantsRepo.js";
+
+function serializeStore(store: StoreRow) {
+  return {
+    id: store.id,
+    name: store.name,
+    slug: store.slug,
+    status: store.status,
+    brandingLogoUrl: store.brandingLogoUrl,
+    brandingPrimaryColor: store.brandingPrimaryColor,
+    brandingThemeConfig: normalizeThemeConfig(store.brandingThemeConfig),
+    marketplaceEligible: store.marketplaceEligible,
+  };
+}
 
 export function createTenantsRouter(deps: AppDependencies): Router {
   const router = Router();
@@ -86,16 +100,7 @@ export function createTenantsRouter(deps: AppDependencies): Router {
       const storesRepo = createStoresRepo(deps.db, { tenantId: req.tenantContext.tenantId });
       const store = await storesRepo.getOwn();
       if (!store) throw new NotFoundError("store not found");
-      res.status(200).json({
-        id: store.id,
-        name: store.name,
-        slug: store.slug,
-        status: store.status,
-        brandingLogoUrl: store.brandingLogoUrl,
-        brandingPrimaryColor: store.brandingPrimaryColor,
-        brandingThemeConfig: normalizeThemeConfig(store.brandingThemeConfig),
-        marketplaceEligible: store.marketplaceEligible,
-      });
+      res.status(200).json(serializeStore(store));
     }),
   );
 
@@ -111,16 +116,53 @@ export function createTenantsRouter(deps: AppDependencies): Router {
       const input = req.body as UpdateStoreRequestInput;
       const store = await storesRepo.updateOwn(input);
       if (!store) throw new NotFoundError("store not found");
-      res.status(200).json({
-        id: store.id,
-        name: store.name,
-        slug: store.slug,
-        status: store.status,
-        brandingLogoUrl: store.brandingLogoUrl,
-        brandingPrimaryColor: store.brandingPrimaryColor,
-        brandingThemeConfig: normalizeThemeConfig(store.brandingThemeConfig),
-        marketplaceEligible: store.marketplaceEligible,
+      res.status(200).json(serializeStore(store));
+    }),
+  );
+
+  router.post(
+    "/:id/store/logo",
+    requireAuth(deps),
+    resolveTenantContext(deps),
+    requirePermission(PERMISSION_KEYS.STORE_UPDATE),
+    imageUploadMiddleware.single("image"),
+    asyncHandler(async (req, res) => {
+      if (!req.tenantContext) throw new UnauthorizedError("tenant context not resolved");
+      if (!req.file) throw new BadRequestError("no image file provided (field name: image)");
+
+      const storesRepo = createStoresRepo(deps.db, { tenantId: req.tenantContext.tenantId });
+      const detected = await validateImageBuffer(req.file.buffer);
+      const { url } = await deps.imageStorage.upload(req.file.buffer, "stores/logo", detected.ext);
+
+      const store = await storesRepo.updateOwn({ brandingLogoUrl: url });
+      if (!store) throw new NotFoundError("store not found");
+      res.status(200).json(serializeStore(store));
+    }),
+  );
+
+  router.post(
+    "/:id/store/theme/hero-image",
+    requireAuth(deps),
+    resolveTenantContext(deps),
+    requirePermission(PERMISSION_KEYS.STORE_UPDATE),
+    imageUploadMiddleware.single("image"),
+    asyncHandler(async (req, res) => {
+      if (!req.tenantContext) throw new UnauthorizedError("tenant context not resolved");
+      if (!req.file) throw new BadRequestError("no image file provided (field name: image)");
+
+      const storesRepo = createStoresRepo(deps.db, { tenantId: req.tenantContext.tenantId });
+      const current = await storesRepo.getOwn();
+      if (!current) throw new NotFoundError("store not found");
+
+      const detected = await validateImageBuffer(req.file.buffer);
+      const { url } = await deps.imageStorage.upload(req.file.buffer, "stores/theme", detected.ext);
+
+      const currentTheme = normalizeThemeConfig(current.brandingThemeConfig);
+      const store = await storesRepo.updateOwn({
+        brandingThemeConfig: { ...currentTheme, hero: { ...currentTheme.hero, imageUrl: url } },
       });
+      if (!store) throw new NotFoundError("store not found");
+      res.status(200).json(serializeStore(store));
     }),
   );
 

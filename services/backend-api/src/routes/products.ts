@@ -1,9 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { Router } from "express";
-import { fileTypeFromBuffer } from "file-type";
-import multer from "multer";
-import { v7 as uuidv7 } from "uuid";
 import {
   createProductRequestSchema,
   createProductVariantRequestSchema,
@@ -22,13 +17,8 @@ import type { AppDependencies } from "../appDependencies.js";
 import type { Database } from "../db/client.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { isUniqueViolation } from "../lib/dbErrors.js";
-import {
-  BadRequestError,
-  ConflictError,
-  NotFoundError,
-  UnauthorizedError,
-  UnprocessableEntityError,
-} from "../lib/errors.js";
+import { BadRequestError, ConflictError, NotFoundError, UnauthorizedError } from "../lib/errors.js";
+import { imageUploadMiddleware, validateImageBuffer } from "../lib/imageUpload.js";
 import { requireParam } from "../lib/params.js";
 import { validateBody } from "../lib/validate.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -39,16 +29,6 @@ import { createInventoryRepo } from "../repositories/inventoryRepo.js";
 import { createProductsRepo, type ProductRow } from "../repositories/productsRepo.js";
 import { createProductVariantsRepo } from "../repositories/productVariantsRepo.js";
 import type { TenantScope } from "../repositories/tenantScope.js";
-
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-// SVG is deliberately excluded even though it's a valid "image" mimetype - it can embed
-// <script> and would be a stored-XSS vector once served back from the same origin.
-const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-
-const imageUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_IMAGE_BYTES },
-});
 
 /**
  * Returns a shape that matches @fashion-platform/shared-types' ProductWithVariants
@@ -170,7 +150,7 @@ export function createProductsRouter(deps: AppDependencies): Router {
     requireAuth(deps),
     resolveTenantContext(deps),
     requirePermission(PERMISSION_KEYS.CATALOG_UPDATE),
-    imageUpload.single("image"),
+    imageUploadMiddleware.single("image"),
     asyncHandler(async (req, res) => {
       if (!req.tenantContext) throw new UnauthorizedError("tenant context not resolved");
       const scope: TenantScope = { tenantId: req.tenantContext.tenantId };
@@ -182,20 +162,10 @@ export function createProductsRouter(deps: AppDependencies): Router {
 
       if (!req.file) throw new BadRequestError("no image file provided (field name: image)");
 
-      // Never trust the client's declared Content-Type - sniff the real
-      // magic bytes before anything touches disk.
-      const detected = await fileTypeFromBuffer(req.file.buffer);
-      if (!detected || !ALLOWED_IMAGE_MIME_TYPES.has(detected.mime)) {
-        throw new UnprocessableEntityError("file must be a JPEG, PNG, WEBP, or GIF image");
-      }
+      const detected = await validateImageBuffer(req.file.buffer);
+      const { url } = await deps.imageStorage.upload(req.file.buffer, "products", detected.ext);
 
-      const productsUploadsDir = path.join(deps.uploadsDir, "products");
-      await mkdir(productsUploadsDir, { recursive: true });
-      const filename = `${uuidv7()}.${detected.ext}`;
-      await writeFile(path.join(productsUploadsDir, filename), req.file.buffer);
-
-      const imageUrl = `${deps.publicApiBaseUrl}/uploads/products/${filename}`;
-      const updated = await productsRepo.update(productId, { imageUrl });
+      const updated = await productsRepo.update(productId, { imageUrl: url });
       if (!updated) throw new NotFoundError("product not found");
 
       res.status(200).json(await buildProductWithVariants(deps.db, scope, updated));

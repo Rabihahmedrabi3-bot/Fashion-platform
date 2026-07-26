@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, FormField, Input } from "@fashion-platform/ui";
 import { ApiError } from "@fashion-platform/api-client";
@@ -50,6 +50,24 @@ export function ThemeSettingsPage() {
     await saveMutation.mutateAsync();
   }
 
+  const [heroImageError, setHeroImageError] = useState<string | null>(null);
+
+  const uploadHeroImageMutation = useMutation({
+    mutationFn: (file: File) => apiClient.uploadThemeHeroImage(tenantId, file),
+    onSuccess: (updatedStore) => {
+      setHeroImageError(null);
+      setTheme((t) => ({ ...t, hero: { ...t.hero, imageUrl: updatedStore.brandingThemeConfig.hero.imageUrl } }));
+      void queryClient.invalidateQueries({ queryKey: ["store", tenantId] });
+    },
+    onError: (err) => setHeroImageError(err instanceof ApiError ? err.message : "Could not upload image."),
+  });
+
+  function handleHeroImageChange(event: ChangeEvent<HTMLInputElement>): void {
+    const file = event.target.files?.[0];
+    if (file) uploadHeroImageMutation.mutate(file);
+    event.target.value = "";
+  }
+
   const banner = theme.banner ?? { enabled: false };
   const featuredCollection = theme.featuredCollection ?? { enabled: false };
   const productGrid = theme.productGrid ?? { enabled: false };
@@ -86,14 +104,34 @@ export function ThemeSettingsPage() {
                 }
               />
             </FormField>
-            <FormField label="Image URL" htmlFor="heroImage">
-              <Input
-                id="heroImage"
-                value={theme.hero.imageUrl ?? ""}
-                onChange={(event) =>
-                  setTheme((t) => ({ ...t, hero: { ...t.hero, imageUrl: event.target.value || undefined } }))
-                }
-              />
+            <FormField label="Image" htmlFor="heroImage">
+              <div className="flex items-center gap-4">
+                {theme.hero.imageUrl ? (
+                  <img
+                    src={theme.hero.imageUrl}
+                    alt="Hero"
+                    className="h-20 w-32 rounded-md border border-slate-200 object-cover"
+                  />
+                ) : (
+                  <div className="flex h-20 w-32 items-center justify-center rounded-md border border-dashed border-slate-300 text-xs text-slate-400">
+                    No image
+                  </div>
+                )}
+                <div>
+                  <input
+                    id="heroImage"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={handleHeroImageChange}
+                    disabled={uploadHeroImageMutation.isPending}
+                    className="text-sm text-slate-700"
+                  />
+                  {uploadHeroImageMutation.isPending ? (
+                    <p className="mt-1 text-xs text-slate-500">Uploading…</p>
+                  ) : null}
+                  {heroImageError ? <p className="mt-1 text-sm text-red-600">{heroImageError}</p> : null}
+                </div>
+              </div>
             </FormField>
           </div>
         </Card>

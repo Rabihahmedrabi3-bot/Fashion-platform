@@ -282,6 +282,18 @@ export class ApiClient {
     return this.patch(`/tenants/${tenantId}/store`, input);
   }
 
+  uploadStoreLogo(tenantId: string, file: File | Blob): Promise<StoreSummary> {
+    const formData = new FormData();
+    formData.set("image", file);
+    return this.postFormData(`/tenants/${tenantId}/store/logo`, formData);
+  }
+
+  uploadThemeHeroImage(tenantId: string, file: File | Blob): Promise<StoreSummary> {
+    const formData = new FormData();
+    formData.set("image", file);
+    return this.postFormData(`/tenants/${tenantId}/store/theme/hero-image`, formData);
+  }
+
   // --- Roles / permissions (read-only reference data) ---
 
   listRoles(): Promise<RoleSummary[]> {
