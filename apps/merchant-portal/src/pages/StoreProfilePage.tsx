@@ -17,10 +17,14 @@ export function StoreProfilePage() {
   const [primaryColor, setPrimaryColor] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const [marketplaceEligible, setMarketplaceEligible] = useState(false);
+  const [marketplaceError, setMarketplaceError] = useState<string | null>(null);
+
   useEffect(() => {
     if (storeQuery.data) {
       setLogoUrl(storeQuery.data.brandingLogoUrl ?? "");
       setPrimaryColor(storeQuery.data.brandingPrimaryColor ?? "");
+      setMarketplaceEligible(storeQuery.data.marketplaceEligible);
     }
   }, [storeQuery.data]);
 
@@ -40,6 +44,20 @@ export function StoreProfilePage() {
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
     await updateMutation.mutateAsync();
+  }
+
+  const marketplaceMutation = useMutation({
+    mutationFn: (nextValue: boolean) => apiClient.updateStore(tenantId, { marketplaceEligible: nextValue }),
+    onSuccess: () => {
+      setMarketplaceError(null);
+      void queryClient.invalidateQueries({ queryKey: ["store", tenantId] });
+    },
+    onError: (err) => setMarketplaceError(err instanceof ApiError ? err.message : "Something went wrong."),
+  });
+
+  async function handleMarketplaceSubmit(event: FormEvent): Promise<void> {
+    event.preventDefault();
+    await marketplaceMutation.mutateAsync(marketplaceEligible);
   }
 
   return (
@@ -73,6 +91,28 @@ export function StoreProfilePage() {
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <Button type="submit" disabled={updateMutation.isPending} className="self-start">
             {updateMutation.isPending ? "Saving…" : "Save branding"}
+          </Button>
+        </form>
+      </Card>
+      <Card>
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">Marketplace</h2>
+        <form onSubmit={(event) => void handleMarketplaceSubmit(event)} className="flex flex-col gap-4">
+          <label htmlFor="marketplaceEligible" className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              id="marketplaceEligible"
+              type="checkbox"
+              checked={marketplaceEligible}
+              onChange={(event) => setMarketplaceEligible(event.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              List this store in the marketplace once it launches. This only records your preference for now —
+              cross-store browsing and search aren&apos;t built yet.
+            </span>
+          </label>
+          {marketplaceError ? <p className="text-sm text-red-600">{marketplaceError}</p> : null}
+          <Button type="submit" disabled={marketplaceMutation.isPending} className="self-start">
+            {marketplaceMutation.isPending ? "Saving…" : "Save marketplace preference"}
           </Button>
         </form>
       </Card>

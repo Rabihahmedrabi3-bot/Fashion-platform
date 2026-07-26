@@ -1,0 +1,1 @@
+ALTER TABLE "stores" ADD COLUMN "marketplace_eligible" boolean DEFAULT false NOT NULL;

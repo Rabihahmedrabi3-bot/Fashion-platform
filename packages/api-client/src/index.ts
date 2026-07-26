@@ -22,6 +22,7 @@ import type {
   ProductVariantWithInventory,
   ProductWithVariants,
   RegisterRequest,
+  TenantAnalytics,
   TenantMembershipStatus,
   TenantStatus,
   ThemeConfig,
@@ -108,6 +109,7 @@ export interface StoreSummary {
   brandingLogoUrl: string | null;
   brandingPrimaryColor: string | null;
   brandingThemeConfig: ThemeConfig;
+  marketplaceEligible: boolean;
 }
 
 export interface MembershipListItem {
@@ -455,6 +457,10 @@ export class ApiClient {
     input: UpdateOrderPaymentRequestInput,
   ): Promise<OrderPayment> {
     return this.patch(`/tenants/${tenantId}/orders/${orderId}/payment`, input);
+  }
+
+  getAnalytics(tenantId: string): Promise<TenantAnalytics> {
+    return this.get(`/tenants/${tenantId}/analytics`);
   }
 
   // --- Admin (Super Admin Portal) ---

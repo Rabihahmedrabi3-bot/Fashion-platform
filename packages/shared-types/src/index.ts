@@ -120,6 +120,7 @@ export interface Store {
   brandingLogoUrl: string | null;
   brandingPrimaryColor: string | null;
   brandingThemeConfig: ThemeConfig;
+  marketplaceEligible: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -316,6 +317,11 @@ export interface PublicProductDetail extends Product {
   variants: Array<Pick<ProductVariant, "id" | "sku" | "size" | "color" | "priceCents">>;
 }
 
+export interface MarketplaceProductSummary extends PublicProductSummary {
+  storeSlug: string;
+  storeName: string;
+}
+
 /** Tenant-owned. Never exposes passwordHash/tokenVersion over the API. */
 export interface Customer {
   id: string;
@@ -464,6 +470,17 @@ export interface PlatformAnalytics {
     productName: string;
     tenantId: string;
     tenantName: string;
+    quantitySold: number;
+    revenueCents: number;
+  }>;
+}
+
+export interface TenantAnalytics {
+  ordersByStatus: Record<OrderStatus, number>;
+  totalOrders: number;
+  totalRevenueCents: number;
+  topProducts: Array<{
+    productName: string;
     quantitySold: number;
     revenueCents: number;
   }>;

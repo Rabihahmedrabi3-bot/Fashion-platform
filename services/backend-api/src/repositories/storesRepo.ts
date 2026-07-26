@@ -17,6 +17,7 @@ export interface UpdateStoreInput {
   brandingLogoUrl?: string | null | undefined;
   brandingPrimaryColor?: string | null | undefined;
   brandingThemeConfig?: ThemeConfig | undefined;
+  marketplaceEligible?: boolean | undefined;
 }
 
 /** Tenant-owned. Every method is scoped to `scope.tenantId` - see tenantScope.ts. */
@@ -38,6 +39,9 @@ export function createStoresRepo(db: Database, scope: TenantScope) {
             : {}),
           ...(input.brandingThemeConfig !== undefined
             ? { brandingThemeConfig: input.brandingThemeConfig }
+            : {}),
+          ...(input.marketplaceEligible !== undefined
+            ? { marketplaceEligible: input.marketplaceEligible }
             : {}),
           updatedAt: new Date(),
         })

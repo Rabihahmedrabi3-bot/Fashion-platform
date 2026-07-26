@@ -94,6 +94,7 @@ export function createTenantsRouter(deps: AppDependencies): Router {
         brandingLogoUrl: store.brandingLogoUrl,
         brandingPrimaryColor: store.brandingPrimaryColor,
         brandingThemeConfig: normalizeThemeConfig(store.brandingThemeConfig),
+        marketplaceEligible: store.marketplaceEligible,
       });
     }),
   );
@@ -118,6 +119,7 @@ export function createTenantsRouter(deps: AppDependencies): Router {
         brandingLogoUrl: store.brandingLogoUrl,
         brandingPrimaryColor: store.brandingPrimaryColor,
         brandingThemeConfig: normalizeThemeConfig(store.brandingThemeConfig),
+        marketplaceEligible: store.marketplaceEligible,
       });
     }),
   );

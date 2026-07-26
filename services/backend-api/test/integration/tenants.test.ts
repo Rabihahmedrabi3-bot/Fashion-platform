@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
+import { SYSTEM_ROLE_KEYS } from "@fashion-platform/shared-types";
 import { buildTestApp } from "../helpers/testApp.js";
-import { createTenantForOwner, registerVerifiedUser, uniqueSlug } from "../helpers/fixtures.js";
+import {
+  createTenantForOwner,
+  inviteAndActivateStaff,
+  registerVerifiedUser,
+  uniqueSlug,
+} from "../helpers/fixtures.js";
 
 describe("tenants", () => {
   it("creating a tenant auto-creates a pending store and an active Store Owner membership", async () => {
@@ -67,6 +73,60 @@ describe("tenants", () => {
       .set("Authorization", `Bearer ${owner.accessToken}`);
     expect(getRes.status).toBe(200);
     expect(getRes.body.brandingPrimaryColor).toBe("#112233");
+  });
+
+  describe("marketplace eligibility", () => {
+    it("defaults to false, and the Store Owner can toggle it on and off, round-tripping through GET", async () => {
+      const { app, emailProvider } = buildTestApp();
+      const owner = await registerVerifiedUser(app, emailProvider);
+      const { tenantId } = await createTenantForOwner(app, owner);
+
+      const initialGet = await request(app)
+        .get(`/tenants/${tenantId}/store`)
+        .set("Authorization", `Bearer ${owner.accessToken}`);
+      expect(initialGet.body.marketplaceEligible).toBe(false);
+
+      const enableRes = await request(app)
+        .patch(`/tenants/${tenantId}/store`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ marketplaceEligible: true });
+      expect(enableRes.status).toBe(200);
+      expect(enableRes.body.marketplaceEligible).toBe(true);
+
+      const afterEnableGet = await request(app)
+        .get(`/tenants/${tenantId}/store`)
+        .set("Authorization", `Bearer ${owner.accessToken}`);
+      expect(afterEnableGet.body.marketplaceEligible).toBe(true);
+
+      const disableRes = await request(app)
+        .patch(`/tenants/${tenantId}/store`)
+        .set("Authorization", `Bearer ${owner.accessToken}`)
+        .send({ marketplaceEligible: false });
+      expect(disableRes.body.marketplaceEligible).toBe(false);
+    });
+
+    it("a Store Manager can toggle it, a Catalog Manager (no STORE_UPDATE) cannot", async () => {
+      const { app, emailProvider } = buildTestApp();
+      const owner = await registerVerifiedUser(app, emailProvider);
+      const { tenantId } = await createTenantForOwner(app, owner);
+
+      const manager = await registerVerifiedUser(app, emailProvider);
+      await inviteAndActivateStaff(app, owner, tenantId, manager, SYSTEM_ROLE_KEYS.STORE_MANAGER);
+      const managerRes = await request(app)
+        .patch(`/tenants/${tenantId}/store`)
+        .set("Authorization", `Bearer ${manager.accessToken}`)
+        .send({ marketplaceEligible: true });
+      expect(managerRes.status).toBe(200);
+      expect(managerRes.body.marketplaceEligible).toBe(true);
+
+      const catalogManager = await registerVerifiedUser(app, emailProvider);
+      await inviteAndActivateStaff(app, owner, tenantId, catalogManager, SYSTEM_ROLE_KEYS.CATALOG_MANAGER);
+      const catalogRes = await request(app)
+        .patch(`/tenants/${tenantId}/store`)
+        .set("Authorization", `Bearer ${catalogManager.accessToken}`)
+        .send({ marketplaceEligible: false });
+      expect(catalogRes.status).toBe(403);
+    });
   });
 
   describe("tenant isolation", () => {

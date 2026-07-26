@@ -210,6 +210,7 @@ export const stores = pgTable(
     brandingLogoUrl: varchar("branding_logo_url", { length: 2048 }),
     brandingPrimaryColor: varchar("branding_primary_color", { length: 7 }),
     brandingThemeConfig: jsonb("branding_theme_config").notNull().default({}),
+    marketplaceEligible: boolean("marketplace_eligible").notNull().default(false),
     ...timestamps,
   },
   (table) => [

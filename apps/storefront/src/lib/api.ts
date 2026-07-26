@@ -5,6 +5,7 @@
 // for real SEO on public product pages).
 
 import type {
+  MarketplaceProductSummary,
   PublicCategory,
   PublicProductDetail,
   PublicProductSummary,
@@ -47,5 +48,24 @@ export async function getProduct(slug: string, productSlug: string): Promise<Pub
 
 export async function listCategories(slug: string): Promise<PublicCategory[]> {
   const result = await getJson<PublicCategory[]>(`/public/stores/${slug}/categories`);
+  return result ?? [];
+}
+
+export interface ListMarketplaceProductsFilter {
+  search?: string | undefined;
+  limit?: number | undefined;
+}
+
+export async function listMarketplaceProducts(
+  filter: ListMarketplaceProductsFilter = {},
+): Promise<MarketplaceProductSummary[]> {
+  const params = new URLSearchParams();
+  if (filter.search) params.set("search", filter.search);
+  if (filter.limit) params.set("limit", String(filter.limit));
+  const suffix = params.toString();
+
+  const result = await getJson<MarketplaceProductSummary[]>(
+    `/public/marketplace/products${suffix ? `?${suffix}` : ""}`,
+  );
   return result ?? [];
 }

@@ -134,6 +134,7 @@ export const updateStoreRequestSchema = z
       .nullable()
       .optional(),
     brandingThemeConfig: themeConfigSchema.optional(),
+    marketplaceEligible: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, "at least one field must be provided");
 export type UpdateStoreRequestInput = z.infer<typeof updateStoreRequestSchema>;
@@ -151,6 +152,12 @@ export const publicProductsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 export type PublicProductsQueryInput = z.infer<typeof publicProductsQuerySchema>;
+
+export const marketplaceProductsQuerySchema = z.object({
+  search: z.string().trim().min(1).max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+export type MarketplaceProductsQueryInput = z.infer<typeof marketplaceProductsQuerySchema>;
 
 // --- Memberships ---
 
