@@ -38,7 +38,7 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: npm install && npm run build --workspace=@fashion-platform/shared-types && npm run build --workspace=@fashion-platform/validation --workspace=@fashion-platform/domain-shared && npm run build --workspace=@fashion-platform/backend-api
+    buildCommand: npm install --include=dev && npm run build --workspace=@fashion-platform/shared-types && npm run build --workspace=@fashion-platform/validation --workspace=@fashion-platform/domain-shared && npm run build --workspace=@fashion-platform/backend-api
     startCommand: npm run start --workspace=@fashion-platform/backend-api
     envVars:
       - key: NODE_ENV
@@ -71,7 +71,7 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: npm install && npm run build --workspace=@fashion-platform/shared-types && npm run build --workspace=@fashion-platform/validation --workspace=@fashion-platform/domain-shared && npm run build --workspace=@fashion-platform/storefront
+    buildCommand: npm install --include=dev && npm run build --workspace=@fashion-platform/shared-types && npm run build --workspace=@fashion-platform/validation --workspace=@fashion-platform/domain-shared && npm run build --workspace=@fashion-platform/storefront
     startCommand: npm run start --workspace=@fashion-platform/storefront
     envVars:
       - key: API_BASE_URL
@@ -83,7 +83,7 @@ services:
     name: merchant-portal
     env: static
     rootDir: .
-    buildCommand: npm install && npm run build --workspace=@fashion-platform/shared-types && npm run build --workspace=@fashion-platform/validation --workspace=@fashion-platform/domain-shared && npm run build --workspace=@fashion-platform/merchant-portal
+    buildCommand: npm install --include=dev && npm run build --workspace=@fashion-platform/shared-types && npm run build --workspace=@fashion-platform/validation --workspace=@fashion-platform/domain-shared && npm run build --workspace=@fashion-platform/merchant-portal
     staticPublishPath: apps/merchant-portal/dist
     envVars:
       - key: VITE_API_BASE_URL
@@ -97,7 +97,7 @@ services:
     name: admin-portal
     env: static
     rootDir: .
-    buildCommand: npm install && npm run build --workspace=@fashion-platform/shared-types && npm run build --workspace=@fashion-platform/validation --workspace=@fashion-platform/domain-shared && npm run build --workspace=@fashion-platform/admin-portal
+    buildCommand: npm install --include=dev && npm run build --workspace=@fashion-platform/shared-types && npm run build --workspace=@fashion-platform/validation --workspace=@fashion-platform/domain-shared && npm run build --workspace=@fashion-platform/admin-portal
     staticPublishPath: apps/admin-portal/dist
     envVars:
       - key: VITE_API_BASE_URL
