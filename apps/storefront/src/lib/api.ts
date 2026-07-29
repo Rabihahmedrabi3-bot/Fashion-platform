@@ -53,6 +53,8 @@ export async function listCategories(slug: string): Promise<PublicCategory[]> {
 
 export interface ListMarketplaceProductsFilter {
   search?: string | undefined;
+  /** Natural-language query, parsed server-side into structured catalog filters. */
+  aiQuery?: string | undefined;
   limit?: number | undefined;
 }
 
@@ -61,6 +63,7 @@ export async function listMarketplaceProducts(
 ): Promise<MarketplaceProductSummary[]> {
   const params = new URLSearchParams();
   if (filter.search) params.set("search", filter.search);
+  if (filter.aiQuery) params.set("aiQuery", filter.aiQuery);
   if (filter.limit) params.set("limit", String(filter.limit));
   const suffix = params.toString();
 

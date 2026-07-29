@@ -4,10 +4,10 @@ import { listMarketplaceProducts } from "../../lib/api";
 export default async function MarketplacePage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string }>;
+  searchParams: Promise<{ search?: string; aiQuery?: string }>;
 }) {
-  const { search } = await searchParams;
-  const products = await listMarketplaceProducts({ search, limit: 48 });
+  const { search, aiQuery } = await searchParams;
+  const products = await listMarketplaceProducts({ search, aiQuery, limit: 48 });
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-8">
@@ -27,6 +27,19 @@ export default async function MarketplacePage({
           />
           <button type="submit" className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white">
             Search
+          </button>
+        </form>
+
+        <form method="get" className="flex gap-2">
+          <input
+            type="text"
+            name="aiQuery"
+            defaultValue={aiQuery ?? ""}
+            placeholder="Ask AI: e.g. red dress for a wedding under $50"
+            className="w-full max-w-md rounded border border-slate-300 px-3 py-2 text-sm"
+          />
+          <button type="submit" className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white">
+            Ask AI
           </button>
         </form>
 

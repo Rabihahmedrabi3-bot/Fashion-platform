@@ -18,6 +18,8 @@
 #        photos, store logo, theme hero image) are stored there, not on
 #        local disk - Render's free-tier filesystem is ephemeral and would
 #        lose every uploaded file on redeploy/restart.
+#      - ANTHROPIC_API_KEY to your Anthropic API key (console.anthropic.com)
+#        - powers AI-assisted natural-language search on the marketplace.
 #   2. On storefront, set API_BASE_URL and NEXT_PUBLIC_API_BASE_URL to
 #      backend-api's Render URL.
 #   3. On merchant-portal and admin-portal, set VITE_API_BASE_URL to
@@ -73,6 +75,8 @@ services:
       - key: R2_BUCKET_NAME
         sync: false
       - key: R2_PUBLIC_BASE_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
         sync: false
       - key: EMAIL_FROM_ADDRESS
         value: no-reply@example.com

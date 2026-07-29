@@ -137,4 +137,99 @@ describe("public marketplace", () => {
     expect(listed.storeSlug).toBe(store.slug);
     expect(typeof listed.storeName).toBe("string");
   });
+
+  it("aiQuery routes through the intent parser and filters by the structured attributes it returns", async () => {
+    const { app, emailProvider, intentParser } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const weddingDressRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({
+        name: "Evening Gown",
+        slug: uniqueSlug("evening-gown"),
+        gender: "women",
+        occasion: "wedding",
+      });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, weddingDressRes.body.id);
+
+    const casualShirtRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({
+        name: "Casual Tee",
+        slug: uniqueSlug("casual-tee"),
+        gender: "men",
+        occasion: "casual",
+      });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, casualShirtRes.body.id);
+
+    intentParser.nextResponse = { gender: "women", occasion: "wedding" };
+    const res = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "something elegant for a wedding" })
+      .expect(200);
+
+    expect(intentParser.calls).toContain("something elegant for a wedding");
+    const ids = res.body.map((p: { id: string }) => p.id);
+    expect(ids).toContain(weddingDressRes.body.id);
+    expect(ids).not.toContain(casualShirtRes.body.id);
+  });
+
+  it("aiQuery-derived price range filters correctly include/exclude by cheapest active variant price", async () => {
+    const { app, emailProvider, intentParser } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const cheapRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Budget Dress", slug: uniqueSlug("budget-dress") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, cheapRes.body.id);
+    await request(app)
+      .post(`/tenants/${store.tenantId}/products/${cheapRes.body.id}/variants`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ sku: uniqueSlug("SKU"), priceCents: 3000 })
+      .expect(201);
+
+    const pricyRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Designer Dress", slug: uniqueSlug("designer-dress") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, pricyRes.body.id);
+    await request(app)
+      .post(`/tenants/${store.tenantId}/products/${pricyRes.body.id}/variants`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ sku: uniqueSlug("SKU"), priceCents: 20000 })
+      .expect(201);
+
+    intentParser.nextResponse = { maxPriceCents: 5000 };
+    const res = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "a dress under $50" })
+      .expect(200);
+
+    const ids = res.body.map((p: { id: string }) => p.id);
+    expect(ids).toContain(cheapRes.body.id);
+    expect(ids).not.toContain(pricyRes.body.id);
+  });
+
+  it("falls back gracefully to a keyword search when the intent parser fails", async () => {
+    const { app, emailProvider, intentParser } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const jacketRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Leather Jacket", slug: uniqueSlug("leather-jacket") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, jacketRes.body.id);
+
+    intentParser.nextResponse = "fail";
+    const res = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "Leather Jacket" })
+      .expect(200);
+
+    const ids = res.body.map((p: { id: string }) => p.id);
+    expect(ids).toContain(jacketRes.body.id);
+  });
 });
