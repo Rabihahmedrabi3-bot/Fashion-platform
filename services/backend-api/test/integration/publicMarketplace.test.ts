@@ -213,6 +213,44 @@ describe("public marketplace", () => {
     expect(ids).not.toContain(redShoeRes.body.id);
   });
 
+  it("aiQuery-derived multi-color value (e.g. 'grey and black' from a 'grey&black scarf' query) matches a single-color-tagged variant on any of its words", async () => {
+    const { app, emailProvider, intentParser } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const greyScarfRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Grey & Black Scarf", slug: uniqueSlug("grey-black-scarf") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, greyScarfRes.body.id);
+    await request(app)
+      .post(`/tenants/${store.tenantId}/products/${greyScarfRes.body.id}/variants`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ sku: uniqueSlug("SKU"), priceCents: 2500, color: "Grey" })
+      .expect(201);
+
+    const blueScarfRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Blue Scarf", slug: uniqueSlug("blue-scarf") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, blueScarfRes.body.id);
+    await request(app)
+      .post(`/tenants/${store.tenantId}/products/${blueScarfRes.body.id}/variants`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ sku: uniqueSlug("SKU"), priceCents: 2500, color: "Blue" })
+      .expect(201);
+
+    // Simulates the AI combining both colors mentioned in "Grey&black scarf" into one string.
+    intentParser.nextResponse = { color: "grey and black" };
+    const res = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "Grey&black scarf" })
+      .expect(200);
+
+    const ids = res.body.map((p: { id: string }) => p.id);
+    expect(ids).toContain(greyScarfRes.body.id);
+    expect(ids).not.toContain(blueScarfRes.body.id);
+  });
+
   it("aiQuery-derived color+size together require a single matching variant, not two unrelated ones", async () => {
     const { app, emailProvider, intentParser } = buildTestApp();
     const store = await setupEligibleActiveStore(app, emailProvider);

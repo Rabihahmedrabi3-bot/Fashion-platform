@@ -38,6 +38,20 @@ export interface ListMarketplaceProductsFilter {
  */
 const STRUCTURED_TEXT_FIELDS = ["subcategory", "gender", "style", "occasion", "season", "fit", "material", "brand"] as const;
 
+/**
+ * Splits an AI-derived value like "grey and black" / "grey & black" / "grey, black"
+ * into ["grey", "black"] so each word can be matched independently. Without this, a
+ * combined multi-word value (e.g. from a "grey&black scarf" query) would require that
+ * exact phrase to appear verbatim in a merchant's single-color variant tag ("Grey"),
+ * which it never would - the whole-phrase substring check silently matched nothing.
+ */
+function toWords(value: string): string[] {
+  return value
+    .split(/[^\p{L}\p{N}]+/u)
+    .map((word) => word.trim())
+    .filter(Boolean);
+}
+
 /** Returns a cheapest-active-variant price per product, same as listPublicProducts. */
 export async function listMarketplaceProducts(
   db: Database,
@@ -66,8 +80,14 @@ export async function listMarketplaceProducts(
   // variant satisfying both, not a green variant and an unrelated size-M variant.
   if (filter.color || filter.size) {
     const variantConditions = [eq(productVariants.status, "active" as const)];
-    if (filter.color) variantConditions.push(ilike(productVariants.color, `%${filter.color}%`));
-    if (filter.size) variantConditions.push(ilike(productVariants.size, `%${filter.size}%`));
+    if (filter.color) {
+      const words = toWords(filter.color);
+      if (words.length > 0) variantConditions.push(or(...words.map((word) => ilike(productVariants.color, `%${word}%`)))!);
+    }
+    if (filter.size) {
+      const words = toWords(filter.size);
+      if (words.length > 0) variantConditions.push(or(...words.map((word) => ilike(productVariants.size, `%${word}%`)))!);
+    }
 
     const variantMatches = await db
       .select({ productId: productVariants.productId })
