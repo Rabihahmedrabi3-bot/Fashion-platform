@@ -2,6 +2,7 @@ import type { Database } from "./db/client.js";
 import type { EmailProvider } from "./lib/email.js";
 import type { ImageStorage } from "./lib/imageStorage.js";
 import type { IntentParser } from "./lib/intentParser.js";
+import type { ResultRanker } from "./lib/resultRanker.js";
 
 export interface AppDependencies {
   db: Database;
@@ -15,4 +16,6 @@ export interface AppDependencies {
   imageStorage: ImageStorage;
   /** Translates a natural-language marketplace search query into structured catalog filters. */
   intentParser: IntentParser;
+  /** Judges genuine relevance of already-filtered marketplace candidates against the original query. */
+  resultRanker: ResultRanker;
 }

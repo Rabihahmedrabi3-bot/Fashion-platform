@@ -2,6 +2,7 @@ import "./loadEnv.js";
 import type { AppDependencies } from "./appDependencies.js";
 import { createDatabase } from "./db/client.js";
 import { AnthropicIntentParser } from "./lib/anthropicIntentParser.js";
+import { AnthropicResultRanker } from "./lib/anthropicResultRanker.js";
 import { DevConsoleEmailProvider } from "./lib/email.js";
 import { R2ImageStorage } from "./lib/r2ImageStorage.js";
 import { createServer } from "./server.js";
@@ -31,6 +32,7 @@ const deps: AppDependencies = {
     publicBaseUrl: requireEnv("R2_PUBLIC_BASE_URL"),
   }),
   intentParser: new AnthropicIntentParser(requireEnv("ANTHROPIC_API_KEY")),
+  resultRanker: new AnthropicResultRanker(requireEnv("ANTHROPIC_API_KEY")),
 };
 
 const port = Number(process.env.PORT ?? 4000);

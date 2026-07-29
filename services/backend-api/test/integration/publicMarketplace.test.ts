@@ -428,4 +428,172 @@ describe("public marketplace", () => {
     const ids = res.body.map((p: { id: string }) => p.id);
     expect(ids).toContain(jacketRes.body.id);
   });
+
+  it("resultRanker reorders and drops candidates that structured filtering alone can't distinguish", async () => {
+    const { app, emailProvider, intentParser, resultRanker } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const productA = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Product A", slug: uniqueSlug("product-a") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, productA.body.id);
+
+    const productB = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Product B", slug: uniqueSlug("product-b") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, productB.body.id);
+
+    const productC = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Product C", slug: uniqueSlug("product-c") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, productC.body.id);
+
+    // No structured filters at all - SQL alone can't distinguish these three, so any
+    // ordering/dropping in the response must have come from the ranker, not the query.
+    intentParser.nextResponse = {};
+    resultRanker.nextOrder = [productB.body.id, productA.body.id];
+
+    const res = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "something nice" })
+      .expect(200);
+
+    expect(res.body.map((p: { id: string }) => p.id)).toEqual([productB.body.id, productA.body.id]);
+    expect(resultRanker.calls).toHaveLength(1);
+    expect(resultRanker.calls[0].query).toBe("something nice");
+    expect(resultRanker.calls[0].candidateIds.sort()).toEqual(
+      [productA.body.id, productB.body.id, productC.body.id].sort(),
+    );
+  });
+
+  it("falls back to the original filtered set when the resultRanker fails", async () => {
+    const { app, emailProvider, intentParser, resultRanker } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const productA = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Ranker Fail A", slug: uniqueSlug("ranker-fail-a") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, productA.body.id);
+
+    const productB = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Ranker Fail B", slug: uniqueSlug("ranker-fail-b") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, productB.body.id);
+
+    intentParser.nextResponse = {};
+    resultRanker.nextOrder = "fail";
+
+    const res = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "anything" })
+      .expect(200);
+
+    const ids = res.body.map((p: { id: string }) => p.id);
+    expect(ids).toContain(productA.body.id);
+    expect(ids).toContain(productB.body.id);
+  });
+
+  it("silently drops a hallucinated id the resultRanker returns that isn't in the candidate set", async () => {
+    const { app, emailProvider, intentParser, resultRanker } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const productA = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Real Product", slug: uniqueSlug("real-product") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, productA.body.id);
+
+    const productB = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Another Real Product", slug: uniqueSlug("another-real-product") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, productB.body.id);
+
+    intentParser.nextResponse = {};
+    resultRanker.nextOrder = [productA.body.id, "00000000-0000-0000-0000-000000000000"];
+
+    const res = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "anything" })
+      .expect(200);
+
+    const ids = res.body.map((p: { id: string }) => p.id);
+    expect(ids).toEqual([productA.body.id]);
+  });
+
+  it("dedupes a duplicated id the resultRanker returns, so the product appears only once", async () => {
+    const { app, emailProvider, intentParser, resultRanker } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const productA = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Dedup Product A", slug: uniqueSlug("dedup-product-a") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, productA.body.id);
+
+    const productB = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Dedup Product B", slug: uniqueSlug("dedup-product-b") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, productB.body.id);
+
+    intentParser.nextResponse = {};
+    resultRanker.nextOrder = [productA.body.id, productA.body.id, productB.body.id];
+
+    const res = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "anything" })
+      .expect(200);
+
+    expect(res.body.map((p: { id: string }) => p.id)).toEqual([productA.body.id, productB.body.id]);
+  });
+
+  it("never invokes the resultRanker for the plain (non-AI) search path", async () => {
+    const { app, emailProvider, resultRanker } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const productRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Plain Search Product", slug: uniqueSlug("plain-search-product") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, productRes.body.id);
+
+    await request(app).get("/public/marketplace/products").query({ search: "Plain Search" }).expect(200);
+
+    expect(resultRanker.calls).toHaveLength(0);
+  });
+
+  it("never invokes the resultRanker when the aiQuery path itself narrows to 0 or 1 candidates", async () => {
+    const { app, emailProvider, intentParser, resultRanker } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const onlyMatchRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Only Match", slug: uniqueSlug("only-match"), subcategory: "unicorn-hat" });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, onlyMatchRes.body.id);
+
+    // Zero candidates.
+    intentParser.nextResponse = { subcategory: "no-such-subcategory-anywhere" };
+    const zeroRes = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "nothing matches this" })
+      .expect(200);
+    expect(zeroRes.body).toEqual([]);
+    expect(resultRanker.calls).toHaveLength(0);
+
+    // Exactly one candidate.
+    intentParser.nextResponse = { subcategory: "unicorn-hat" };
+    const oneRes = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "unicorn hat" })
+      .expect(200);
+    expect(oneRes.body.map((p: { id: string }) => p.id)).toEqual([onlyMatchRes.body.id]);
+    expect(resultRanker.calls).toHaveLength(0);
+  });
 });

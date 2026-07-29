@@ -5,6 +5,7 @@ import { getTestDb } from "./db.js";
 import { TestEmailProvider } from "./testEmailProvider.js";
 import { TestImageStorage } from "./testImageStorage.js";
 import { TestIntentParser } from "./testIntentParser.js";
+import { TestResultRanker } from "./testResultRanker.js";
 
 export interface TestContext {
   app: Express;
@@ -12,12 +13,14 @@ export interface TestContext {
   emailProvider: TestEmailProvider;
   imageStorage: TestImageStorage;
   intentParser: TestIntentParser;
+  resultRanker: TestResultRanker;
 }
 
 export function buildTestApp(): TestContext {
   const emailProvider = new TestEmailProvider();
   const imageStorage = new TestImageStorage();
   const intentParser = new TestIntentParser();
+  const resultRanker = new TestResultRanker();
   const deps: AppDependencies = {
     db: getTestDb(),
     emailProvider,
@@ -27,6 +30,7 @@ export function buildTestApp(): TestContext {
     emailFromAddress: "no-reply@test.local",
     imageStorage,
     intentParser,
+    resultRanker,
   };
-  return { app: createServer(deps), deps, emailProvider, imageStorage, intentParser };
+  return { app: createServer(deps), deps, emailProvider, imageStorage, intentParser, resultRanker };
 }

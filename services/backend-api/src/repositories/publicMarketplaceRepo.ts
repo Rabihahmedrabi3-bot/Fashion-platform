@@ -52,21 +52,50 @@ function toWords(value: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Adds the free-text/taxonomy fields a ResultRanker needs to judge relevance,
+ * on top of the public MarketplaceProductSummary DTO - callers (the route)
+ * project back down to the narrow public shape before responding; this
+ * richer shape never itself gets serialized to an HTTP response.
+ */
+export interface MarketplaceProductWithDetails extends MarketplaceProductSummary {
+  description: string | null;
+  subcategory: string | null;
+  gender: string | null;
+  style: string | null;
+  occasion: string | null;
+  season: string | null;
+  fit: string | null;
+  material: string | null;
+  brand: string | null;
+}
+
 /** Returns a cheapest-active-variant price per product, same as listPublicProducts. */
 export async function listMarketplaceProducts(
   db: Database,
   filter: ListMarketplaceProductsFilter,
-): Promise<MarketplaceProductSummary[]> {
+): Promise<MarketplaceProductWithDetails[]> {
   const conditions = [
     eq(products.status, "active" as const),
     eq(stores.marketplaceEligible, true),
     eq(stores.status, "active" as const),
   ];
 
-  const textQuery = filter.keywords ?? filter.search;
-  if (textQuery) {
+  // Keywords (AI-derived leftover text) are tokenized like color/size - an
+  // over-broad match here is fine because the route's ResultRanker step
+  // filters out any false positives afterward. `search` (the plain, non-AI
+  // box) is deliberately left as a single-phrase match: it has no ranker
+  // downstream to clean up a broadened result set, so loosening it would be
+  // an unrelated behavior change to today's plain-search relevance.
+  if (filter.keywords) {
+    const words = toWords(filter.keywords);
+    const wordConditions = words.map(
+      (word) => or(ilike(products.name, `%${word}%`), ilike(products.description, `%${word}%`))!,
+    );
+    if (wordConditions.length > 0) conditions.push(or(...wordConditions)!);
+  } else if (filter.search) {
     conditions.push(
-      or(ilike(products.name, `%${textQuery}%`), ilike(products.description, `%${textQuery}%`))!,
+      or(ilike(products.name, `%${filter.search}%`), ilike(products.description, `%${filter.search}%`))!,
     );
   }
 
@@ -125,6 +154,15 @@ export async function listMarketplaceProducts(
     priceCentsFrom: priceByProductId.get(row.product.id) ?? null,
     storeSlug: row.storeSlug,
     storeName: row.storeName,
+    description: row.product.description,
+    subcategory: row.product.subcategory,
+    gender: row.product.gender,
+    style: row.product.style,
+    occasion: row.product.occasion,
+    season: row.product.season,
+    fit: row.product.fit,
+    material: row.product.material,
+    brand: row.product.brand,
   }));
 
   // Price-range filtering happens here, after the price lookup above, rather

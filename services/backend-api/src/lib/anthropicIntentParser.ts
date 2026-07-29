@@ -64,7 +64,10 @@ export class AnthropicIntentParser implements IntentParser {
   async parseSearchQuery(query: string): Promise<SearchFilters> {
     try {
       const response = await this.client.messages.create({
-        model: "claude-haiku-4-5-20251001",
+        // Sonnet, not Haiku - better at inferring the right filter values from
+        // ambiguous/colloquial phrasing (e.g. "birthday party", "grey&black"),
+        // worth the extra per-query latency/cost for this endpoint's volume.
+        model: "claude-sonnet-5",
         max_tokens: 512,
         tools: [FILTER_TOOL],
         tool_choice: { type: "tool", name: TOOL_NAME },

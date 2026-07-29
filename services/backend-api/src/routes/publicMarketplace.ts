@@ -1,9 +1,34 @@
+import type { MarketplaceProductSummary } from "@fashion-platform/shared-types";
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { marketplaceProductsQuerySchema } from "@fashion-platform/validation";
 import type { AppDependencies } from "../appDependencies.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
-import { listMarketplaceProducts, type ListMarketplaceProductsFilter } from "../repositories/publicMarketplaceRepo.js";
+import {
+  listMarketplaceProducts,
+  type ListMarketplaceProductsFilter,
+  type MarketplaceProductWithDetails,
+} from "../repositories/publicMarketplaceRepo.js";
+
+/**
+ * Independent of the caller-supplied `limit` (up to 100 per marketplaceProductsQuerySchema) -
+ * sending 100 full candidates (each up to a 5000-char description) to the ranker on every
+ * request would be a real cost/latency spike a client could trigger just by passing a high
+ * limit. This caps what actually reaches the ranker, not what the base query can return.
+ */
+const MAX_RANKING_CANDIDATES = 30;
+
+function toPublicSummary(product: MarketplaceProductWithDetails): MarketplaceProductSummary {
+  return {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    imageUrl: product.imageUrl,
+    priceCentsFrom: product.priceCentsFrom,
+    storeSlug: product.storeSlug,
+    storeName: product.storeName,
+  };
+}
 
 export function createPublicMarketplaceRouter(deps: AppDependencies): Router {
   const router = Router();
@@ -30,7 +55,27 @@ export function createPublicMarketplaceRouter(deps: AppDependencies): Router {
         Object.assign(filter, parsed);
       }
 
-      res.status(200).json(await listMarketplaceProducts(deps.db, filter));
+      let candidates = await listMarketplaceProducts(deps.db, filter);
+
+      // Ranking only applies to the AI path (the plain `search` box has no query text
+      // beyond the literal filter it already ran) and only when there's more than one
+      // candidate to actually reorder/filter - a single weak match from SQL filtering
+      // is never quality-checked, a deliberate tradeoff rather than an oversight.
+      if (query.aiQuery && candidates.length > 1) {
+        const toRank = candidates.slice(0, MAX_RANKING_CANDIDATES);
+        const orderedIds = await deps.resultRanker.rank(query.aiQuery, toRank);
+        const byId = new Map(toRank.map((c) => [c.id, c]));
+        const seen = new Set<string>();
+        const reranked = orderedIds
+          .filter((id) => byId.has(id) && !seen.has(id) && seen.add(id))
+          .map((id) => byId.get(id)!);
+        // If ranking produced nothing usable (e.g. every id was a hallucination),
+        // fall back to the original filtered set rather than returning nothing -
+        // ranking can only ever narrow/reorder what filtering already found.
+        if (reranked.length > 0) candidates = reranked;
+      }
+
+      res.status(200).json(candidates.map(toPublicSummary));
     }),
   );
 
