@@ -5,6 +5,8 @@ import { ApiError } from "@fashion-platform/api-client";
 import { apiClient } from "../lib/apiClient";
 import { useTenantContext } from "../lib/useTenantContext";
 
+const STOREFRONT_BASE_URL = import.meta.env.VITE_STOREFRONT_BASE_URL ?? "http://localhost:3000";
+
 export function StoreProfilePage() {
   const { tenantId } = useTenantContext();
   const queryClient = useQueryClient();
@@ -12,6 +14,16 @@ export function StoreProfilePage() {
     queryKey: ["store", tenantId],
     queryFn: () => apiClient.getStore(tenantId),
   });
+
+  const [copied, setCopied] = useState(false);
+  const storeUrl = storeQuery.data ? `${STOREFRONT_BASE_URL}/store/${storeQuery.data.slug}` : null;
+
+  async function handleCopyStoreUrl(): Promise<void> {
+    if (!storeUrl) return;
+    await navigator.clipboard.writeText(storeUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   const [primaryColor, setPrimaryColor] = useState("");
   const [secondaryColor, setSecondaryColor] = useState("");
@@ -103,6 +115,23 @@ export function StoreProfilePage() {
         <p className="text-slate-900">{storeQuery.data?.name ?? "…"}</p>
         <p className="mt-3 text-sm text-slate-500">Status</p>
         <p className="text-slate-900">{storeQuery.data?.status ?? "…"}</p>
+      </Card>
+      <Card>
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">Share your store</h2>
+        {storeUrl ? (
+          <div className="flex items-center gap-2">
+            <Input readOnly value={storeUrl} onFocus={(event) => event.target.select()} />
+            <Button type="button" variant="secondary" onClick={() => void handleCopyStoreUrl()}>
+              {copied ? "Copied!" : "Copy"}
+            </Button>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">Loading…</p>
+        )}
+        <p className="mt-2 text-xs text-slate-500">
+          Share this link with customers on social media, WhatsApp, or anywhere else — it takes them straight to
+          your storefront.
+        </p>
       </Card>
       <Card>
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Logo</h2>

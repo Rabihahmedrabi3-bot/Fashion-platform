@@ -23,6 +23,8 @@
 #   3. On merchant-portal and admin-portal, set VITE_API_BASE_URL to
 #      backend-api's Render URL, then trigger a redeploy (Vite bakes this
 #      in at build time, so it won't pick up a var set after the build ran).
+#      Also set merchant-portal's VITE_STOREFRONT_BASE_URL to storefront's
+#      Render URL - shown to merchants as their shareable store link.
 #   4. Run once, from backend-api's Shell tab in the Render dashboard:
 #        npm run db:migrate --workspace=@fashion-platform/backend-api
 #        npm run db:seed --workspace=@fashion-platform/backend-api
@@ -96,6 +98,8 @@ services:
     staticPublishPath: apps/merchant-portal/dist
     envVars:
       - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_STOREFRONT_BASE_URL
         sync: false
     routes:
       - type: rewrite
