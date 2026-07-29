@@ -1,6 +1,18 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AddToCartForm } from "../../../../../components/AddToCartForm";
 import { getProduct } from "../../../../../lib/api";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; productSlug: string }>;
+}): Promise<Metadata> {
+  const { slug, productSlug } = await params;
+  const product = await getProduct(slug, productSlug);
+  if (!product) return {};
+  return { title: product.name };
+}
 
 export default async function ProductDetailPage({
   params,

@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ProductCard } from "../../../../components/ProductCard";
 import { listCategories, listProducts } from "../../../../lib/api";
+
+export const metadata: Metadata = { title: "Shop" };
 
 export default async function ProductsPage({
   params,

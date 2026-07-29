@@ -55,15 +55,21 @@ export function createAuthRouter(deps: AppDependencies): Router {
     "/register",
     validateBody(registerRequestSchema),
     asyncHandler(async (req, res) => {
-      const { email, password, fullName } = req.body as RegisterRequestInput;
+      const { email, password, fullName, phone } = req.body as RegisterRequestInput;
 
       const existing = await usersRepo.findByEmail(email);
       if (existing) {
         throw new ConflictError("an account with this email already exists");
       }
+      if (phone) {
+        const existingPhone = await usersRepo.findByPhone(phone);
+        if (existingPhone) {
+          throw new ConflictError("an account with this phone number already exists");
+        }
+      }
 
       const passwordHash = await hashPassword(password);
-      const user = await usersRepo.create({ email, passwordHash, fullName });
+      const user = await usersRepo.create({ email, passwordHash, fullName, phone: phone ?? null });
 
       const rawToken = generateOpaqueToken();
       await verificationTokensRepo.create(
@@ -99,10 +105,10 @@ export function createAuthRouter(deps: AppDependencies): Router {
     "/login",
     validateBody(loginRequestSchema),
     asyncHandler(async (req, res) => {
-      const { email, password } = req.body as LoginRequestInput;
-      const user = await usersRepo.findByEmail(email);
+      const { email, phone, password } = req.body as LoginRequestInput;
+      const user = email ? await usersRepo.findByEmail(email) : await usersRepo.findByPhone(phone!);
       if (!user || user.status !== "active" || !(await verifyPassword(user.passwordHash, password))) {
-        throw new UnauthorizedError("invalid email or password");
+        throw new UnauthorizedError("invalid email/phone or password");
       }
 
       const session = await issueSession(user.id, user.tokenVersion);

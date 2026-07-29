@@ -7,7 +7,7 @@ import { useAuth } from "../lib/auth";
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -17,7 +17,9 @@ export function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await login(email, password);
+      const trimmed = identifier.trim();
+      const credentials = trimmed.includes("@") ? { email: trimmed } : { phone: trimmed };
+      await login(credentials, password);
       navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
@@ -31,13 +33,12 @@ export function LoginPage() {
       <Card className="w-full max-w-sm">
         <h1 className="mb-4 text-lg font-semibold text-slate-900">Merchant Portal</h1>
         <form onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-4">
-          <FormField label="Email" htmlFor="email">
+          <FormField label="Email or phone number" htmlFor="identifier">
             <Input
-              id="email"
-              type="email"
+              id="identifier"
               required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
             />
           </FormField>
           <FormField label="Password" htmlFor="password">

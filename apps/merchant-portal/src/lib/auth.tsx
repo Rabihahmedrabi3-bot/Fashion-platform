@@ -10,7 +10,7 @@ interface AuthContextValue {
   me: MeResponse | null;
   selectedTenantId: string | null;
   selectTenant: (tenantId: string) => void;
-  login: (email: string, password: string) => Promise<void>;
+  login: (credentials: { email?: string; phone?: string }, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
 }
@@ -68,8 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function login(email: string, password: string): Promise<void> {
-    const tokens = await apiClient.login({ email, password });
+  async function login(credentials: { email?: string; phone?: string }, password: string): Promise<void> {
+    const tokens = await apiClient.login({ ...credentials, password });
     tokenStore.setTokens(tokens);
     await loadMe();
   }

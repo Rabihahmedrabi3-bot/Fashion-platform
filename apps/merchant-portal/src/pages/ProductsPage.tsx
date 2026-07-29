@@ -60,7 +60,9 @@ export function ProductsPage() {
           ]}
           rows={productsQuery.data ?? []}
           getRowKey={(row) => row.id}
-          emptyMessage={productsQuery.isLoading ? "Loading…" : "No products yet."}
+          emptyMessage={
+            productsQuery.isLoading ? "Loading…" : "No products yet — use \"New product\" above to add one."
+          }
         />
       </Card>
     </div>

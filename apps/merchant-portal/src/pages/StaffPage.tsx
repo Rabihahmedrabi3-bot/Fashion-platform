@@ -21,6 +21,7 @@ export function StaffPage() {
   const [email, setEmail] = useState("");
   const [roleKey, setRoleKey] = useState("staff_basic");
   const [error, setError] = useState<string | null>(null);
+  const [confirmingRevokeId, setConfirmingRevokeId] = useState<string | null>(null);
 
   const inviteMutation = useMutation({
     mutationFn: () => apiClient.inviteMembership(tenantId, { email, roleKey }),
@@ -39,7 +40,10 @@ export function StaffPage() {
 
   const revokeMutation = useMutation({
     mutationFn: (membershipId: string) => apiClient.revokeMembership(tenantId, membershipId),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["memberships", tenantId] }),
+    onSuccess: () => {
+      setConfirmingRevokeId(null);
+      void queryClient.invalidateQueries({ queryKey: ["memberships", tenantId] });
+    },
   });
 
   async function handleInvite(event: FormEvent): Promise<void> {
@@ -117,13 +121,34 @@ export function StaffPage() {
                     </button>
                   ) : null}
                   {row.status !== "revoked" ? (
-                    <button
-                      type="button"
-                      onClick={() => revokeMutation.mutate(row.id)}
-                      className="text-sm text-red-600 hover:underline"
-                    >
-                      Revoke
-                    </button>
+                    confirmingRevokeId === row.id ? (
+                      <span className="flex items-center gap-2 text-sm">
+                        Revoke?
+                        <button
+                          type="button"
+                          onClick={() => revokeMutation.mutate(row.id)}
+                          disabled={revokeMutation.isPending}
+                          className="font-medium text-red-600 hover:underline"
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingRevokeId(null)}
+                          className="text-slate-500 hover:underline"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingRevokeId(row.id)}
+                        className="text-sm text-red-600 hover:underline"
+                      >
+                        Revoke
+                      </button>
+                    )
                   ) : null}
                 </div>
               ),
@@ -131,7 +156,7 @@ export function StaffPage() {
           ]}
           rows={membershipsQuery.data ?? []}
           getRowKey={(row) => row.id}
-          emptyMessage={membershipsQuery.isLoading ? "Loading…" : "No staff yet."}
+          emptyMessage={membershipsQuery.isLoading ? "Loading…" : "No staff yet — use \"Invite\" above to add one."}
         />
       </Card>
     </div>

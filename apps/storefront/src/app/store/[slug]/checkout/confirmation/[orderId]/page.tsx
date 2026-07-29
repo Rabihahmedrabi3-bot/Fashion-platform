@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@fashion-platform/ui";
 import type { OrderItem, OrderWithDetails } from "@fashion-platform/shared-types";
+import { getStore } from "../../../../../../lib/api";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4000";
 
@@ -12,13 +13,31 @@ async function getOrder(slug: string, orderId: string): Promise<OrderWithDetails
   return (await res.json()) as OrderWithDetails;
 }
 
+function buildWhatsappLink(whatsappNumber: string, storeName: string, order: OrderWithDetails): string {
+  const lines = [
+    `New order from ${order.customerName} for ${storeName}`,
+    "",
+    ...order.items.map((item: OrderItem) => {
+      const variant = [item.variantSizeSnapshot, item.variantColorSnapshot].filter(Boolean).join("/");
+      return `- ${item.productNameSnapshot}${variant ? ` (${variant})` : ""} x${item.quantity} - $${(item.lineTotalCents / 100).toFixed(2)}`;
+    }),
+    "",
+    `Total: $${(order.totalCents / 100).toFixed(2)}`,
+    "",
+    `Customer: ${order.customerName} (${order.customerPhone})`,
+    `Ship to: ${order.shippingAddressLine1}${order.shippingAddressLine2 ? `, ${order.shippingAddressLine2}` : ""}, ${order.shippingCity}${order.shippingRegion ? `, ${order.shippingRegion}` : ""}${order.shippingPostalCode ? ` ${order.shippingPostalCode}` : ""}, ${order.shippingCountry}`,
+  ];
+  const digitsOnly = whatsappNumber.replace(/[^0-9]/g, "");
+  return `https://wa.me/${digitsOnly}?text=${encodeURIComponent(lines.join("\n"))}`;
+}
+
 export default async function OrderConfirmationPage({
   params,
 }: {
   params: Promise<{ slug: string; orderId: string }>;
 }) {
   const { slug, orderId } = await params;
-  const order = await getOrder(slug, orderId);
+  const [order, store] = await Promise.all([getOrder(slug, orderId), getStore(slug)]);
   if (!order) notFound();
 
   return (
@@ -70,6 +89,17 @@ export default async function OrderConfirmationPage({
           {order.shippingCountry}
         </p>
       </Card>
+
+      {store?.whatsappNumber ? (
+        <a
+          href={buildWhatsappLink(store.whatsappNumber, store.name, order)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-md bg-[#25D366] px-4 py-2 text-center text-sm font-medium text-white hover:opacity-90"
+        >
+          Send order to {store.name} on WhatsApp
+        </a>
+      ) : null}
 
       <Link href={`/store/${slug}/products`} className="text-center text-sm underline">
         Continue shopping

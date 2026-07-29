@@ -32,6 +32,7 @@ function serializeStore(store: StoreRow) {
     brandingSecondaryColor: store.brandingSecondaryColor,
     brandingThemeConfig: normalizeThemeConfig(store.brandingThemeConfig),
     marketplaceEligible: store.marketplaceEligible,
+    whatsappNumber: store.whatsappNumber,
   };
 }
 

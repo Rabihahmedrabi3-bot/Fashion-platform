@@ -16,6 +16,7 @@ export function ProductFormPage() {
   const isEditing = Boolean(productId);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [confirmingArchive, setConfirmingArchive] = useState(false);
 
   const categoriesQuery = useQuery({
     queryKey: ["categories", tenantId],
@@ -73,6 +74,7 @@ export function ProductFormPage() {
   const archiveMutation = useMutation({
     mutationFn: () => apiClient.archiveProduct(tenantId, productId as string),
     onSuccess: () => {
+      setConfirmingArchive(false);
       void queryClient.invalidateQueries({ queryKey: ["product", tenantId, productId] });
       void queryClient.invalidateQueries({ queryKey: ["products", tenantId] });
     },
@@ -187,9 +189,25 @@ export function ProductFormPage() {
                 Publish
               </Button>
             )}
-            <Button variant="danger" onClick={() => archiveMutation.mutate()} disabled={archiveMutation.isPending}>
-              Archive
-            </Button>
+            {confirmingArchive ? (
+              <span className="flex items-center gap-2 text-sm">
+                Archive this product?
+                <Button
+                  variant="danger"
+                  onClick={() => archiveMutation.mutate()}
+                  disabled={archiveMutation.isPending}
+                >
+                  Yes, archive
+                </Button>
+                <Button variant="secondary" onClick={() => setConfirmingArchive(false)}>
+                  Cancel
+                </Button>
+              </span>
+            ) : (
+              <Button variant="danger" onClick={() => setConfirmingArchive(true)}>
+                Archive
+              </Button>
+            )}
           </div>
         ) : null}
       </div>

@@ -61,6 +61,8 @@ export const users = pgTable(
   {
     id: id(),
     email: varchar("email", { length: 320 }).notNull(),
+    /** Optional alternate login identifier alongside email - unverified, unlike email. */
+    phone: varchar("phone", { length: 30 }),
     passwordHash: varchar("password_hash", { length: 255 }).notNull(),
     fullName: varchar("full_name", { length: 200 }).notNull(),
     status: userStatusEnum("status").notNull().default("pending_verification"),
@@ -69,7 +71,10 @@ export const users = pgTable(
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     ...timestamps,
   },
-  (table) => [uniqueIndex("users_email_unique").on(table.email)],
+  (table) => [
+    uniqueIndex("users_email_unique").on(table.email),
+    uniqueIndex("users_phone_unique").on(table.phone),
+  ],
 );
 
 /** Tenant-owned (identified by its own id). */
@@ -210,6 +215,7 @@ export const stores = pgTable(
     brandingLogoUrl: varchar("branding_logo_url", { length: 2048 }),
     brandingPrimaryColor: varchar("branding_primary_color", { length: 7 }),
     brandingSecondaryColor: varchar("branding_secondary_color", { length: 7 }),
+    whatsappNumber: varchar("whatsapp_number", { length: 20 }),
     brandingThemeConfig: jsonb("branding_theme_config").notNull().default({}),
     marketplaceEligible: boolean("marketplace_eligible").notNull().default(false),
     ...timestamps,

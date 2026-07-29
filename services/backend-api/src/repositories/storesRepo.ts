@@ -19,6 +19,7 @@ export interface UpdateStoreInput {
   brandingSecondaryColor?: string | null | undefined;
   brandingThemeConfig?: ThemeConfig | undefined;
   marketplaceEligible?: boolean | undefined;
+  whatsappNumber?: string | null | undefined;
 }
 
 /** Tenant-owned. Every method is scoped to `scope.tenantId` - see tenantScope.ts. */
@@ -47,6 +48,7 @@ export function createStoresRepo(db: Database, scope: TenantScope) {
           ...(input.marketplaceEligible !== undefined
             ? { marketplaceEligible: input.marketplaceEligible }
             : {}),
+          ...(input.whatsappNumber !== undefined ? { whatsappNumber: input.whatsappNumber } : {}),
           updatedAt: new Date(),
         })
         .where(eq(stores.tenantId, scope.tenantId))

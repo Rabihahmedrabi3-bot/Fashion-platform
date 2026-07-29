@@ -57,6 +57,13 @@
       "when": 1785088289427,
       "tag": "0007_serious_sentry",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785339915959,
+      "tag": "0008_striped_maria_hill",
+      "breakpoints": true
     }
   ]
 }

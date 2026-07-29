@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Card, Table } from "@fashion-platform/ui";
 import type { TenantAnalytics } from "@fashion-platform/shared-types";
 import { apiClient } from "../lib/apiClient";
@@ -27,10 +28,37 @@ export function DashboardPage() {
     queryKey: ["tenant", tenantId, "analytics"],
     queryFn: () => apiClient.getAnalytics(tenantId),
   });
+  const productsQuery = useQuery({
+    queryKey: ["products", tenantId],
+    queryFn: () => apiClient.listProducts(tenantId),
+  });
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold text-slate-900">Dashboard</h1>
+
+      {productsQuery.data?.length === 0 ? (
+        <Card>
+          <h2 className="mb-2 text-sm font-semibold text-slate-900">Getting started</h2>
+          <ul className="flex flex-col gap-1 text-sm">
+            <li>
+              <Link to="/products/new" className="text-slate-700 underline">
+                Add your first product
+              </Link>
+            </li>
+            <li>
+              <Link to="/store" className="text-slate-700 underline">
+                Set your store branding
+              </Link>
+            </li>
+            <li>
+              <Link to="/theme" className="text-slate-700 underline">
+                Configure your storefront theme
+              </Link>
+            </li>
+          </ul>
+        </Card>
+      ) : null}
 
       <Card>
         <p className="text-sm text-slate-500">Store status</p>

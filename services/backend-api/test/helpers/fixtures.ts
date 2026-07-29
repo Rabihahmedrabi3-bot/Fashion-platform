@@ -12,6 +12,12 @@ export function uniqueSlug(prefix: string): string {
   return `${prefix}-${Date.now()}-${counter}`;
 }
 
+let phoneCounter = 100000;
+export function uniquePhone(): string {
+  phoneCounter += 1;
+  return `+96170${phoneCounter}`;
+}
+
 export interface RegisteredUser {
   id: string;
   email: string;

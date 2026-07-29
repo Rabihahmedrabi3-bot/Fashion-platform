@@ -111,6 +111,7 @@ export interface StoreSummary {
   brandingSecondaryColor: string | null;
   brandingThemeConfig: ThemeConfig;
   marketplaceEligible: boolean;
+  whatsappNumber: string | null;
 }
 
 export interface MembershipListItem {

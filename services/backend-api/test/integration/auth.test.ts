@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { buildTestApp } from "../helpers/testApp.js";
-import { registerVerifiedUser, uniqueSlug } from "../helpers/fixtures.js";
+import { registerVerifiedUser, uniquePhone, uniqueSlug } from "../helpers/fixtures.js";
 
 describe("auth", () => {
   it("registers, verifies email, logs in, refreshes, and logs out - full cycle", async () => {
@@ -131,5 +131,64 @@ describe("auth", () => {
       .post("/auth/reset-password")
       .send({ token: "does-not-exist", newPassword: "some-new-password-789" });
     expect(res.status).toBe(410);
+  });
+
+  it("registers with a phone number and logs in using the phone instead of email", async () => {
+    const { app, emailProvider } = buildTestApp();
+    const email = `${uniqueSlug("phoneuser")}@example.com`;
+    const phone = uniquePhone();
+    const password = "correct-horse-battery-staple";
+
+    await request(app)
+      .post("/auth/register")
+      .send({ email, password, fullName: "Phone User", phone })
+      .expect(201);
+    const token = emailProvider.lastToken(email);
+    await request(app).post("/auth/verify-email").send({ token }).expect(200);
+
+    const loginRes = await request(app).post("/auth/login").send({ phone, password });
+    expect(loginRes.status).toBe(200);
+    expect(loginRes.body).toHaveProperty("accessToken");
+
+    // Email still works for the same account.
+    const loginByEmail = await request(app).post("/auth/login").send({ email, password });
+    expect(loginByEmail.status).toBe(200);
+  });
+
+  it("rejects registering a duplicate phone number with 409", async () => {
+    const { app } = buildTestApp();
+    const phone = uniquePhone();
+
+    await request(app)
+      .post("/auth/register")
+      .send({
+        email: `${uniqueSlug("first")}@example.com`,
+        password: "correct-horse-battery-staple",
+        fullName: "First User",
+        phone,
+      })
+      .expect(201);
+
+    const res = await request(app)
+      .post("/auth/register")
+      .send({
+        email: `${uniqueSlug("second")}@example.com`,
+        password: "correct-horse-battery-staple",
+        fullName: "Second User",
+        phone,
+      });
+    expect(res.status).toBe(409);
+  });
+
+  it("rejects a login request with both email and phone, or with neither", async () => {
+    const { app } = buildTestApp();
+
+    const both = await request(app)
+      .post("/auth/login")
+      .send({ email: "someone@example.com", phone: "+96170123456", password: "whatever-password" });
+    expect(both.status).toBe(422);
+
+    const neither = await request(app).post("/auth/login").send({ password: "whatever-password" });
+    expect(neither.status).toBe(422);
   });
 });

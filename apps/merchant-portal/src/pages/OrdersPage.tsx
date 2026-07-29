@@ -79,7 +79,9 @@ export function OrdersPage() {
           ]}
           rows={ordersQuery.data ?? []}
           getRowKey={(row) => row.id}
-          emptyMessage={ordersQuery.isLoading ? "Loading…" : "No orders yet."}
+          emptyMessage={
+            ordersQuery.isLoading ? "Loading…" : "No orders yet — they'll show up here once customers start checking out."
+          }
         />
       </Card>
     </div>

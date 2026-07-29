@@ -34,6 +34,7 @@ export function TaxonomyListPage({ title, queryKey, createSchema, list, create, 
   const { tenantId } = useTenantContext();
   const queryClient = useQueryClient();
   const [formError, setFormError] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const listQuery = useQuery({
     queryKey: [queryKey, tenantId],
@@ -59,7 +60,10 @@ export function TaxonomyListPage({ title, queryKey, createSchema, list, create, 
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => remove(tenantId, id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: [queryKey, tenantId] }),
+    onSuccess: () => {
+      setConfirmingId(null);
+      void queryClient.invalidateQueries({ queryKey: [queryKey, tenantId] });
+    },
     onError: (err) => setFormError(err instanceof ApiError ? err.message : "Could not delete - it may still be in use."),
   });
 
@@ -100,20 +104,36 @@ export function TaxonomyListPage({ title, queryKey, createSchema, list, create, 
             {
               key: "actions",
               header: "",
-              render: (row: TaxonomyItem) => (
-                <button
-                  type="button"
-                  onClick={() => deleteMutation.mutate(row.id)}
-                  className="text-sm text-red-600 hover:underline"
-                >
-                  Delete
-                </button>
-              ),
+              render: (row: TaxonomyItem) =>
+                confirmingId === row.id ? (
+                  <span className="flex items-center gap-2 text-sm">
+                    Delete?
+                    <button
+                      type="button"
+                      onClick={() => deleteMutation.mutate(row.id)}
+                      disabled={deleteMutation.isPending}
+                      className="font-medium text-red-600 hover:underline"
+                    >
+                      Yes
+                    </button>
+                    <button type="button" onClick={() => setConfirmingId(null)} className="text-slate-500 hover:underline">
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingId(row.id)}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Delete
+                  </button>
+                ),
             },
           ]}
           rows={listQuery.data ?? []}
           getRowKey={(row) => row.id}
-          emptyMessage={listQuery.isLoading ? "Loading…" : "None yet."}
+          emptyMessage={listQuery.isLoading ? "Loading…" : `No ${title.toLowerCase()} yet — use "Add" above to create one.`}
         />
       </Card>
     </div>

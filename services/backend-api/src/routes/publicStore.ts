@@ -92,6 +92,7 @@ export function createPublicStoreRouter(deps: AppDependencies): Router {
         brandingPrimaryColor: store.brandingPrimaryColor,
         brandingSecondaryColor: store.brandingSecondaryColor,
         brandingThemeConfig: normalizeThemeConfig(store.brandingThemeConfig),
+        whatsappNumber: store.whatsappNumber,
       };
       res.status(200).json(response);
     }),

@@ -13,12 +13,19 @@ export function createUsersRepo(db: Database) {
       return row ?? null;
     },
 
+    async findByPhone(phone: string): Promise<UserRow | null> {
+      const [row] = await db.select().from(users).where(eq(users.phone, phone)).limit(1);
+      return row ?? null;
+    },
+
     async findById(id: string): Promise<UserRow | null> {
       const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
       return row ?? null;
     },
 
-    async create(input: Pick<NewUserRow, "email" | "passwordHash" | "fullName">): Promise<UserRow> {
+    async create(
+      input: Pick<NewUserRow, "email" | "passwordHash" | "fullName"> & { phone?: string | null },
+    ): Promise<UserRow> {
       const [row] = await db.insert(users).values(input).returning();
       if (!row) throw new Error("failed to create user");
       return row;

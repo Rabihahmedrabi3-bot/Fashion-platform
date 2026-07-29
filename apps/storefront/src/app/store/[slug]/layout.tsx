@@ -1,9 +1,21 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
 import { getStore } from "../../../lib/api";
 import { CartProvider } from "../../../lib/cart";
 import { CustomerAuthProvider } from "../../../lib/customerAuth";
 import { StorefrontHeader } from "../../../components/StorefrontHeader";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const store = await getStore(slug);
+  if (!store) return { title: "Fashion Platform" };
+  return { title: { template: `%s · ${store.name}`, default: store.name } };
+}
 
 export default async function StoreLayout({
   children,

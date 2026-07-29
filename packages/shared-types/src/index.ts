@@ -18,6 +18,7 @@ export type PaymentStatus = "pending" | "collected" | "failed";
 export interface User {
   id: string;
   email: string;
+  phone: string | null;
   fullName: string;
   status: UserStatus;
   emailVerifiedAt: string | null;
@@ -122,6 +123,7 @@ export interface Store {
   brandingSecondaryColor: string | null;
   brandingThemeConfig: ThemeConfig;
   marketplaceEligible: boolean;
+  whatsappNumber: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -271,10 +273,12 @@ export interface RegisterRequest {
   email: string;
   password: string;
   fullName: string;
+  phone?: string | null;
 }
 
 export interface LoginRequest {
-  email: string;
+  email?: string;
+  phone?: string;
   password: string;
 }
 
@@ -298,6 +302,7 @@ export interface PublicStoreResponse {
   brandingPrimaryColor: string | null;
   brandingSecondaryColor: string | null;
   brandingThemeConfig: ThemeConfig;
+  whatsappNumber: string | null;
 }
 
 export interface PublicCategory {

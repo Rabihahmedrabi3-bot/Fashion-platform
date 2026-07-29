@@ -20,6 +20,9 @@ export function StoreProfilePage() {
   const [marketplaceEligible, setMarketplaceEligible] = useState(false);
   const [marketplaceError, setMarketplaceError] = useState<string | null>(null);
 
+  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [whatsappError, setWhatsappError] = useState<string | null>(null);
+
   const [logoError, setLogoError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,6 +30,7 @@ export function StoreProfilePage() {
       setPrimaryColor(storeQuery.data.brandingPrimaryColor ?? "");
       setSecondaryColor(storeQuery.data.brandingSecondaryColor ?? "");
       setMarketplaceEligible(storeQuery.data.marketplaceEligible);
+      setWhatsappNumber(storeQuery.data.whatsappNumber ?? "");
     }
   }, [storeQuery.data]);
 
@@ -75,6 +79,20 @@ export function StoreProfilePage() {
   async function handleMarketplaceSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
     await marketplaceMutation.mutateAsync(marketplaceEligible);
+  }
+
+  const whatsappMutation = useMutation({
+    mutationFn: () => apiClient.updateStore(tenantId, { whatsappNumber: whatsappNumber || null }),
+    onSuccess: () => {
+      setWhatsappError(null);
+      void queryClient.invalidateQueries({ queryKey: ["store", tenantId] });
+    },
+    onError: (err) => setWhatsappError(err instanceof ApiError ? err.message : "Something went wrong."),
+  });
+
+  async function handleWhatsappSubmit(event: FormEvent): Promise<void> {
+    event.preventDefault();
+    await whatsappMutation.mutateAsync();
   }
 
   return (
@@ -161,6 +179,27 @@ export function StoreProfilePage() {
           {marketplaceError ? <p className="text-sm text-red-600">{marketplaceError}</p> : null}
           <Button type="submit" disabled={marketplaceMutation.isPending} className="self-start">
             {marketplaceMutation.isPending ? "Saving…" : "Save marketplace preference"}
+          </Button>
+        </form>
+      </Card>
+      <Card>
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">WhatsApp</h2>
+        <form onSubmit={(event) => void handleWhatsappSubmit(event)} className="flex flex-col gap-4">
+          <FormField label="WhatsApp number" htmlFor="whatsappNumber">
+            <Input
+              id="whatsappNumber"
+              value={whatsappNumber}
+              onChange={(event) => setWhatsappNumber(event.target.value)}
+              placeholder="+9611234567"
+            />
+          </FormField>
+          <p className="text-xs text-slate-500">
+            Shown to customers after checkout as a one-click link to send you their order details on WhatsApp.
+            Include the country code (e.g. +961…). Leave blank to hide this option.
+          </p>
+          {whatsappError ? <p className="text-sm text-red-600">{whatsappError}</p> : null}
+          <Button type="submit" disabled={whatsappMutation.isPending} className="self-start">
+            {whatsappMutation.isPending ? "Saving…" : "Save WhatsApp number"}
           </Button>
         </form>
       </Card>

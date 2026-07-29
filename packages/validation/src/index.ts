@@ -23,6 +23,7 @@ export const registerRequestSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   fullName: z.string().trim().min(1).max(200),
+  phone: phoneSchema.nullable().optional(),
 });
 export type RegisterRequestInput = z.infer<typeof registerRequestSchema>;
 
@@ -31,10 +32,13 @@ export const verifyEmailRequestSchema = z.object({
 });
 export type VerifyEmailRequestInput = z.infer<typeof verifyEmailRequestSchema>;
 
-export const loginRequestSchema = z.object({
-  email: emailSchema,
-  password: z.string().min(1),
-});
+export const loginRequestSchema = z
+  .object({
+    email: emailSchema.optional(),
+    phone: phoneSchema.optional(),
+    password: z.string().min(1),
+  })
+  .refine((value) => Boolean(value.email) !== Boolean(value.phone), "provide exactly one of email or phone");
 export type LoginRequestInput = z.infer<typeof loginRequestSchema>;
 
 export const refreshRequestSchema = z.object({
@@ -141,6 +145,13 @@ export const updateStoreRequestSchema = z
       .optional(),
     brandingThemeConfig: themeConfigSchema.optional(),
     marketplaceEligible: z.boolean().optional(),
+    /** Digits with an optional leading + - matches what wa.me links require, no formatting characters. */
+    whatsappNumber: z
+      .string()
+      .trim()
+      .regex(/^\+?[0-9]{7,15}$/)
+      .nullable()
+      .optional(),
   })
   .refine((value) => Object.keys(value).length > 0, "at least one field must be provided");
 export type UpdateStoreRequestInput = z.infer<typeof updateStoreRequestSchema>;

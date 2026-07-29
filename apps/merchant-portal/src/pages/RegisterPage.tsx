@@ -7,6 +7,7 @@ import { apiClient } from "../lib/apiClient";
 export function RegisterPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +18,7 @@ export function RegisterPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await apiClient.register({ email, password, fullName });
+      await apiClient.register({ email, password, fullName, phone: phone.trim() || null });
       navigate(`/verify-email?email=${encodeURIComponent(email)}`, { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
@@ -42,6 +43,9 @@ export function RegisterPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
+          </FormField>
+          <FormField label="Phone number (optional)" htmlFor="phone">
+            <Input id="phone" value={phone} onChange={(event) => setPhone(event.target.value)} />
           </FormField>
           <FormField label="Password" htmlFor="password">
             <Input
