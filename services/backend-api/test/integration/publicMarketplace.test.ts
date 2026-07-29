@@ -176,6 +176,92 @@ describe("public marketplace", () => {
     expect(ids).not.toContain(casualShirtRes.body.id);
   });
 
+  it("aiQuery-derived color filters by the matching product's variant color, not name/description text", async () => {
+    const { app, emailProvider, intentParser } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const greenShoeRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Classic Sneaker", slug: uniqueSlug("classic-sneaker") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, greenShoeRes.body.id);
+    await request(app)
+      .post(`/tenants/${store.tenantId}/products/${greenShoeRes.body.id}/variants`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ sku: uniqueSlug("SKU"), priceCents: 5000, color: "Green" })
+      .expect(201);
+
+    const redShoeRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Classic Sneaker Two", slug: uniqueSlug("classic-sneaker-two") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, redShoeRes.body.id);
+    await request(app)
+      .post(`/tenants/${store.tenantId}/products/${redShoeRes.body.id}/variants`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ sku: uniqueSlug("SKU"), priceCents: 5000, color: "Red" })
+      .expect(201);
+
+    intentParser.nextResponse = { color: "green" };
+    const res = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "green shoes" })
+      .expect(200);
+
+    const ids = res.body.map((p: { id: string }) => p.id);
+    expect(ids).toContain(greenShoeRes.body.id);
+    expect(ids).not.toContain(redShoeRes.body.id);
+  });
+
+  it("aiQuery-derived color+size together require a single matching variant, not two unrelated ones", async () => {
+    const { app, emailProvider, intentParser } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    // Has a green/M variant AND a red/L variant - should match "green, size M".
+    const matchingRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Combo Tee", slug: uniqueSlug("combo-tee") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, matchingRes.body.id);
+    await request(app)
+      .post(`/tenants/${store.tenantId}/products/${matchingRes.body.id}/variants`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ sku: uniqueSlug("SKU"), priceCents: 4000, color: "Green", size: "M" })
+      .expect(201);
+    await request(app)
+      .post(`/tenants/${store.tenantId}/products/${matchingRes.body.id}/variants`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ sku: uniqueSlug("SKU"), priceCents: 4000, color: "Red", size: "L" })
+      .expect(201);
+
+    // Has green/L and red/M, but never green AND M on the same variant - should NOT match.
+    const nonMatchingRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Mismatch Tee", slug: uniqueSlug("mismatch-tee") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, nonMatchingRes.body.id);
+    await request(app)
+      .post(`/tenants/${store.tenantId}/products/${nonMatchingRes.body.id}/variants`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ sku: uniqueSlug("SKU"), priceCents: 4000, color: "Green", size: "L" })
+      .expect(201);
+    await request(app)
+      .post(`/tenants/${store.tenantId}/products/${nonMatchingRes.body.id}/variants`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ sku: uniqueSlug("SKU"), priceCents: 4000, color: "Red", size: "M" })
+      .expect(201);
+
+    intentParser.nextResponse = { color: "green", size: "M" };
+    const res = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "green tee size M" })
+      .expect(200);
+
+    const ids = res.body.map((p: { id: string }) => p.id);
+    expect(ids).toContain(matchingRes.body.id);
+    expect(ids).not.toContain(nonMatchingRes.body.id);
+  });
+
   it("aiQuery-derived price range filters correctly include/exclude by cheapest active variant price", async () => {
     const { app, emailProvider, intentParser } = buildTestApp();
     const store = await setupEligibleActiveStore(app, emailProvider);
@@ -211,6 +297,78 @@ describe("public marketplace", () => {
     const ids = res.body.map((p: { id: string }) => p.id);
     expect(ids).toContain(cheapRes.body.id);
     expect(ids).not.toContain(pricyRes.body.id);
+  });
+
+  it("aiQuery-derived minPriceCents ('above $X') excludes cheaper items the same way maxPriceCents excludes pricier ones", async () => {
+    const { app, emailProvider, intentParser } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const cheapRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Budget Coat", slug: uniqueSlug("budget-coat") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, cheapRes.body.id);
+    await request(app)
+      .post(`/tenants/${store.tenantId}/products/${cheapRes.body.id}/variants`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ sku: uniqueSlug("SKU"), priceCents: 3000 })
+      .expect(201);
+
+    const pricyRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Designer Coat", slug: uniqueSlug("designer-coat") });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, pricyRes.body.id);
+    await request(app)
+      .post(`/tenants/${store.tenantId}/products/${pricyRes.body.id}/variants`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ sku: uniqueSlug("SKU"), priceCents: 20000 })
+      .expect(201);
+
+    intentParser.nextResponse = { minPriceCents: 10000 };
+    const res = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "a coat above $100" })
+      .expect(200);
+
+    const ids = res.body.map((p: { id: string }) => p.id);
+    expect(ids).toContain(pricyRes.body.id);
+    expect(ids).not.toContain(cheapRes.body.id);
+  });
+
+  it("aiQuery-derived occasion matches an occasion-appropriate product the same way for any tagged occasion (birthday party, beach, etc.), not just 'wedding'", async () => {
+    const { app, emailProvider, intentParser } = buildTestApp();
+    const store = await setupEligibleActiveStore(app, emailProvider);
+
+    const beachRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Linen Cover-Up", slug: uniqueSlug("linen-coverup"), occasion: "beach", season: "summer" });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, beachRes.body.id);
+
+    const partyRes = await request(app)
+      .post(`/tenants/${store.tenantId}/products`)
+      .set("Authorization", `Bearer ${store.owner.accessToken}`)
+      .send({ name: "Sequin Top", slug: uniqueSlug("sequin-top"), occasion: "party" });
+    await activateProduct(app, store.owner.accessToken, store.tenantId, partyRes.body.id);
+
+    intentParser.nextResponse = { occasion: "beach", season: "summer" };
+    const beachSearchRes = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "something for going to the beach" })
+      .expect(200);
+    const beachIds = beachSearchRes.body.map((p: { id: string }) => p.id);
+    expect(beachIds).toContain(beachRes.body.id);
+    expect(beachIds).not.toContain(partyRes.body.id);
+
+    intentParser.nextResponse = { occasion: "party" };
+    const partySearchRes = await request(app)
+      .get("/public/marketplace/products")
+      .query({ aiQuery: "outfit for a birthday party" })
+      .expect(200);
+    const partyIds = partySearchRes.body.map((p: { id: string }) => p.id);
+    expect(partyIds).toContain(partyRes.body.id);
+    expect(partyIds).not.toContain(beachRes.body.id);
   });
 
   it("falls back gracefully to a keyword search when the intent parser fails", async () => {

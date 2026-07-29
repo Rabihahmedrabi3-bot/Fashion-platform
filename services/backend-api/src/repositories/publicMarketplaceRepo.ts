@@ -22,6 +22,9 @@ export interface ListMarketplaceProductsFilter {
   season?: string | undefined;
   fit?: string | undefined;
   material?: string | undefined;
+  /** Variant-level, not product-level - see product_variants.color/size - so these can't join STRUCTURED_TEXT_FIELDS' plain products.field ilike. */
+  color?: string | undefined;
+  size?: string | undefined;
   brand?: string | undefined;
   minPriceCents?: number | undefined;
   maxPriceCents?: number | undefined;
@@ -56,6 +59,23 @@ export async function listMarketplaceProducts(
   for (const field of STRUCTURED_TEXT_FIELDS) {
     const value = filter[field];
     if (value) conditions.push(ilike(products[field], `%${value}%`));
+  }
+
+  // Color/size live on product_variants, not products - matched together in one
+  // query (not two independent ones) so a "green, size M" query requires a single
+  // variant satisfying both, not a green variant and an unrelated size-M variant.
+  if (filter.color || filter.size) {
+    const variantConditions = [eq(productVariants.status, "active" as const)];
+    if (filter.color) variantConditions.push(ilike(productVariants.color, `%${filter.color}%`));
+    if (filter.size) variantConditions.push(ilike(productVariants.size, `%${filter.size}%`));
+
+    const variantMatches = await db
+      .select({ productId: productVariants.productId })
+      .from(productVariants)
+      .where(and(...variantConditions));
+    const productIds = [...new Set(variantMatches.map((row) => row.productId))];
+    if (productIds.length === 0) return [];
+    conditions.push(inArray(products.id, productIds));
   }
 
   const limit = filter.limit ?? 24;

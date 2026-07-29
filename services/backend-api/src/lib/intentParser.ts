@@ -13,6 +13,8 @@ export interface SearchFilters {
   season?: string | undefined;
   fit?: string | undefined;
   material?: string | undefined;
+  color?: string | undefined;
+  size?: string | undefined;
   brand?: string | undefined;
   minPriceCents?: number | undefined;
   maxPriceCents?: number | undefined;

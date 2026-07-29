@@ -18,6 +18,8 @@ const FILTER_TOOL: Anthropic.Tool = {
       season: { type: "string", description: "e.g. 'summer', 'winter'" },
       fit: { type: "string", description: "e.g. 'slim', 'loose', 'regular'" },
       material: { type: "string", description: "e.g. 'cotton', 'leather', 'silk'" },
+      color: { type: "string", description: "e.g. 'green', 'black', 'red'" },
+      size: { type: "string", description: "e.g. 'S', 'M', 'L', 'XL', '42'" },
       brand: { type: "string" },
       minPriceCents: { type: "integer", description: "Lower price bound in cents, if the query mentions a price floor" },
       maxPriceCents: { type: "integer", description: "Upper price bound in cents, if the query mentions a price ceiling (e.g. 'under $50' -> 5000)" },
