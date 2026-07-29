@@ -1,0 +1,1 @@
+ALTER TABLE "stores" ADD COLUMN "branding_secondary_color" varchar(7);

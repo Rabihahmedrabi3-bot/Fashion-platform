@@ -29,6 +29,7 @@ function serializeStore(store: StoreRow) {
     status: store.status,
     brandingLogoUrl: store.brandingLogoUrl,
     brandingPrimaryColor: store.brandingPrimaryColor,
+    brandingSecondaryColor: store.brandingSecondaryColor,
     brandingThemeConfig: normalizeThemeConfig(store.brandingThemeConfig),
     marketplaceEligible: store.marketplaceEligible,
   };

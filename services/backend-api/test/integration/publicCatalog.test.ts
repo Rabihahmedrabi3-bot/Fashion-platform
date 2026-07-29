@@ -164,4 +164,21 @@ describe("public catalog", () => {
     expect(publicRes.body.brandingThemeConfig.hero.title).toBe("Summer sale");
     expect(publicRes.body.brandingThemeConfig.productGrid.title).toBe("New arrivals");
   });
+
+  it("brandingSecondaryColor set via PATCH /tenants/:id/store is visible publicly", async () => {
+    const { app, emailProvider } = buildTestApp();
+    const owner = await registerVerifiedUser(app, emailProvider);
+    const { tenantId, slug } = await createTenantForOwner(app, owner);
+    await approveTenant(app, emailProvider, tenantId);
+
+    await request(app)
+      .patch(`/tenants/${tenantId}/store`)
+      .set("Authorization", `Bearer ${owner.accessToken}`)
+      .send({ brandingSecondaryColor: "#ff8800" })
+      .expect(200);
+
+    const publicRes = await request(app).get(`/public/stores/${slug}`);
+    expect(publicRes.status).toBe(200);
+    expect(publicRes.body.brandingSecondaryColor).toBe("#ff8800");
+  });
 });

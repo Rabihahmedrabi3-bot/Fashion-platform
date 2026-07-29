@@ -64,15 +64,17 @@ describe("tenants", () => {
     const res = await request(app)
       .patch(`/tenants/${tenantId}/store`)
       .set("Authorization", `Bearer ${owner.accessToken}`)
-      .send({ brandingPrimaryColor: "#112233" });
+      .send({ brandingPrimaryColor: "#112233", brandingSecondaryColor: "#445566" });
     expect(res.status).toBe(200);
     expect(res.body.brandingPrimaryColor).toBe("#112233");
+    expect(res.body.brandingSecondaryColor).toBe("#445566");
 
     const getRes = await request(app)
       .get(`/tenants/${tenantId}/store`)
       .set("Authorization", `Bearer ${owner.accessToken}`);
     expect(getRes.status).toBe(200);
     expect(getRes.body.brandingPrimaryColor).toBe("#112233");
+    expect(getRes.body.brandingSecondaryColor).toBe("#445566");
   });
 
   describe("marketplace eligibility", () => {

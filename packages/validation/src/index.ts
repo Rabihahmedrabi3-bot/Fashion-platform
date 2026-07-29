@@ -133,6 +133,12 @@ export const updateStoreRequestSchema = z
       .regex(/^#[0-9a-fA-F]{6}$/)
       .nullable()
       .optional(),
+    brandingSecondaryColor: z
+      .string()
+      .trim()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .nullable()
+      .optional(),
     brandingThemeConfig: themeConfigSchema.optional(),
     marketplaceEligible: z.boolean().optional(),
   })

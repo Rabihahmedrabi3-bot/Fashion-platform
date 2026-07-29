@@ -16,6 +16,7 @@ export interface UpdateStoreInput {
   name?: string | undefined;
   brandingLogoUrl?: string | null | undefined;
   brandingPrimaryColor?: string | null | undefined;
+  brandingSecondaryColor?: string | null | undefined;
   brandingThemeConfig?: ThemeConfig | undefined;
   marketplaceEligible?: boolean | undefined;
 }
@@ -36,6 +37,9 @@ export function createStoresRepo(db: Database, scope: TenantScope) {
           ...(input.brandingLogoUrl !== undefined ? { brandingLogoUrl: input.brandingLogoUrl } : {}),
           ...(input.brandingPrimaryColor !== undefined
             ? { brandingPrimaryColor: input.brandingPrimaryColor }
+            : {}),
+          ...(input.brandingSecondaryColor !== undefined
+            ? { brandingSecondaryColor: input.brandingSecondaryColor }
             : {}),
           ...(input.brandingThemeConfig !== undefined
             ? { brandingThemeConfig: input.brandingThemeConfig }

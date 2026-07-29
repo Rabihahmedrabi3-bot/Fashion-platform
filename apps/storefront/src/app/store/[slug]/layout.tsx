@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { getStore } from "../../../lib/api";
 import { CartProvider } from "../../../lib/cart";
 import { CustomerAuthProvider } from "../../../lib/customerAuth";
@@ -20,7 +20,16 @@ export default async function StoreLayout({
     <CustomerAuthProvider storeSlug={slug}>
       <CartProvider storeSlug={slug}>
         <StorefrontHeader store={store} />
-        <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+        <main
+          className="mx-auto max-w-5xl px-6 py-8"
+          style={
+            {
+              "--brand-accent": store.brandingSecondaryColor ?? store.brandingPrimaryColor ?? "#0f172a",
+            } as CSSProperties
+          }
+        >
+          {children}
+        </main>
       </CartProvider>
     </CustomerAuthProvider>
   );

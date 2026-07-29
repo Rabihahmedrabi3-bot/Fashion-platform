@@ -25,7 +25,7 @@ export default async function ProductsPage({
         <nav className="flex flex-wrap gap-2 text-sm">
           <Link
             href={`/store/${slug}/products`}
-            className={`rounded-full px-3 py-1 ${!category ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
+            className={`rounded-full px-3 py-1 ${!category ? "bg-[var(--brand-accent,#0f172a)] text-white" : "bg-slate-100 text-slate-700"}`}
           >
             All
           </Link>
@@ -34,7 +34,7 @@ export default async function ProductsPage({
               key={cat.id}
               href={`/store/${slug}/products?category=${cat.slug}`}
               className={`rounded-full px-3 py-1 ${
-                category === cat.slug ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"
+                category === cat.slug ? "bg-[var(--brand-accent,#0f172a)] text-white" : "bg-slate-100 text-slate-700"
               }`}
             >
               {cat.name}

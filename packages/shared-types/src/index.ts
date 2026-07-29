@@ -119,6 +119,7 @@ export interface Store {
   status: StoreStatus;
   brandingLogoUrl: string | null;
   brandingPrimaryColor: string | null;
+  brandingSecondaryColor: string | null;
   brandingThemeConfig: ThemeConfig;
   marketplaceEligible: boolean;
   createdAt: string;
@@ -295,6 +296,7 @@ export interface PublicStoreResponse {
   slug: string;
   brandingLogoUrl: string | null;
   brandingPrimaryColor: string | null;
+  brandingSecondaryColor: string | null;
   brandingThemeConfig: ThemeConfig;
 }
 

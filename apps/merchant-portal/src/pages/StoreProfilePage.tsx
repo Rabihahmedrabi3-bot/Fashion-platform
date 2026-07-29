@@ -14,6 +14,7 @@ export function StoreProfilePage() {
   });
 
   const [primaryColor, setPrimaryColor] = useState("");
+  const [secondaryColor, setSecondaryColor] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const [marketplaceEligible, setMarketplaceEligible] = useState(false);
@@ -24,12 +25,17 @@ export function StoreProfilePage() {
   useEffect(() => {
     if (storeQuery.data) {
       setPrimaryColor(storeQuery.data.brandingPrimaryColor ?? "");
+      setSecondaryColor(storeQuery.data.brandingSecondaryColor ?? "");
       setMarketplaceEligible(storeQuery.data.marketplaceEligible);
     }
   }, [storeQuery.data]);
 
   const updateMutation = useMutation({
-    mutationFn: () => apiClient.updateStore(tenantId, { brandingPrimaryColor: primaryColor || null }),
+    mutationFn: () =>
+      apiClient.updateStore(tenantId, {
+        brandingPrimaryColor: primaryColor || null,
+        brandingSecondaryColor: secondaryColor || null,
+      }),
     onSuccess: () => {
       setError(null);
       void queryClient.invalidateQueries({ queryKey: ["store", tenantId] });
@@ -118,6 +124,18 @@ export function StoreProfilePage() {
               placeholder="#112233"
             />
           </FormField>
+          <FormField label="Secondary color (hex)" htmlFor="secondaryColor">
+            <Input
+              id="secondaryColor"
+              value={secondaryColor}
+              onChange={(event) => setSecondaryColor(event.target.value)}
+              placeholder="#445566"
+            />
+          </FormField>
+          <p className="text-xs text-slate-500">
+            Primary colors the storefront header. Secondary is used for buttons and calls to action — if left
+            blank, the primary color is used for both.
+          </p>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <Button type="submit" disabled={updateMutation.isPending} className="self-start">
             {updateMutation.isPending ? "Saving…" : "Save branding"}

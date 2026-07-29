@@ -90,6 +90,7 @@ export function createPublicStoreRouter(deps: AppDependencies): Router {
         slug: store.slug,
         brandingLogoUrl: store.brandingLogoUrl,
         brandingPrimaryColor: store.brandingPrimaryColor,
+        brandingSecondaryColor: store.brandingSecondaryColor,
         brandingThemeConfig: normalizeThemeConfig(store.brandingThemeConfig),
       };
       res.status(200).json(response);

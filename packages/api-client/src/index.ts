@@ -108,6 +108,7 @@ export interface StoreSummary {
   status: string;
   brandingLogoUrl: string | null;
   brandingPrimaryColor: string | null;
+  brandingSecondaryColor: string | null;
   brandingThemeConfig: ThemeConfig;
   marketplaceEligible: boolean;
 }
