@@ -53,6 +53,12 @@ export function createPublicMarketplaceRouter(deps: AppDependencies): Router {
       if (query.aiQuery) {
         const parsed = await deps.intentParser.parseSearchQuery(query.aiQuery);
         Object.assign(filter, parsed);
+        // Logged unconditionally (not just on error) - the only way to tell, after the
+        // fact, whether a bad marketplace result came from Claude mis-extracting a filter
+        // versus every other stage in this pipeline. Cheap at this endpoint's rate-limited
+        // volume (30 req/15min); see Render's backend-api logs to check what Claude actually
+        // returned for a given query.
+        console.log("[marketplace aiQuery]", JSON.stringify({ query: query.aiQuery, filters: parsed }));
       }
 
       let candidates = await listMarketplaceProducts(deps.db, filter);
@@ -69,6 +75,10 @@ export function createPublicMarketplaceRouter(deps: AppDependencies): Router {
         const reranked = orderedIds
           .filter((id) => byId.has(id) && !seen.has(id) && seen.add(id))
           .map((id) => byId.get(id)!);
+        console.log(
+          "[marketplace rank]",
+          JSON.stringify({ candidateIds: toRank.map((c) => c.id), orderedIds, keptCount: reranked.length }),
+        );
         // If ranking produced nothing usable (e.g. every id was a hallucination),
         // fall back to the original filtered set rather than returning nothing -
         // ranking can only ever narrow/reorder what filtering already found.
