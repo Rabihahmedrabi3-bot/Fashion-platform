@@ -17,6 +17,7 @@ import type {
   Permission,
   PlatformAnalytics,
   PlatformSettings,
+  ProductImportRowResult,
   ProductListItem,
   ProductVariant,
   ProductVariantWithInventory,
@@ -159,7 +160,11 @@ export class ApiClient {
   private async request<T>(
     path: string,
     init: RequestInit = {},
-    { auth = true, allowRetry = true }: { auth?: boolean; allowRetry?: boolean } = {},
+    {
+      auth = true,
+      allowRetry = true,
+      responseType = "json",
+    }: { auth?: boolean; allowRetry?: boolean; responseType?: "json" | "blob" } = {},
   ): Promise<T> {
     const headers = new Headers(init.headers);
     // FormData bodies must NOT get a manual Content-Type - the browser sets
@@ -178,7 +183,7 @@ export class ApiClient {
     if (res.status === 401 && auth && allowRetry) {
       const refreshed = await this.tryRefresh();
       if (refreshed) {
-        return this.request<T>(path, init, { auth, allowRetry: false });
+        return this.request<T>(path, init, { auth, allowRetry: false, responseType });
       }
       this.options.onSessionExpired();
       throw new ApiError(401, "Session expired", null);
@@ -190,6 +195,7 @@ export class ApiClient {
     }
 
     if (res.status === 204) return undefined as T;
+    if (responseType === "blob") return (await res.blob()) as T;
     return (await res.json()) as T;
   }
 
@@ -212,6 +218,10 @@ export class ApiClient {
 
   private get<T>(path: string): Promise<T> {
     return this.request<T>(path, { method: "GET" });
+  }
+
+  private getBlob(path: string): Promise<Blob> {
+    return this.request<Blob>(path, { method: "GET" }, { responseType: "blob" });
   }
 
   private post<T>(path: string, body?: unknown, opts?: { auth?: boolean }): Promise<T> {
@@ -406,6 +416,16 @@ export class ApiClient {
     const formData = new FormData();
     formData.set("image", file);
     return this.postFormData(`/tenants/${tenantId}/products/${productId}/image`, formData);
+  }
+
+  downloadProductImportTemplate(tenantId: string): Promise<Blob> {
+    return this.getBlob(`/tenants/${tenantId}/products/import/template`);
+  }
+
+  importProducts(tenantId: string, file: File | Blob): Promise<{ results: ProductImportRowResult[] }> {
+    const formData = new FormData();
+    formData.set("file", file);
+    return this.postFormData(`/tenants/${tenantId}/products/import`, formData);
   }
 
   createVariant(

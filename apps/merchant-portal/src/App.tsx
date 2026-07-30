@@ -8,6 +8,7 @@ import { OnboardingPage } from "./pages/OnboardingPage";
 import { OrderDetailPage } from "./pages/OrderDetailPage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { ProductFormPage } from "./pages/ProductFormPage";
+import { ProductImportPage } from "./pages/ProductImportPage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { StaffPage } from "./pages/StaffPage";
@@ -30,6 +31,7 @@ export function App() {
         <Route path="/collections" element={<CollectionsPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/products/new" element={<ProductFormPage />} />
+        <Route path="/products/import" element={<ProductImportPage />} />
         <Route path="/products/:productId" element={<ProductFormPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/orders/:orderId" element={<OrderDetailPage />} />

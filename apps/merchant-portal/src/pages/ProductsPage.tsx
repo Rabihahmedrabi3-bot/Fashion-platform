@@ -22,9 +22,14 @@ export function ProductsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-slate-900">Products</h1>
-        <Link to="/products/new">
-          <Button>New product</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/products/import">
+            <Button variant="secondary">Import products</Button>
+          </Link>
+          <Link to="/products/new">
+            <Button>New product</Button>
+          </Link>
+        </div>
       </div>
       <Card>
         <Table

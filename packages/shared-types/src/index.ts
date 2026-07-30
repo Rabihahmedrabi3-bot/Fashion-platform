@@ -482,6 +482,14 @@ export interface PlatformAnalytics {
   }>;
 }
 
+export interface ProductImportRowResult {
+  row: number;
+  productName: string;
+  sku: string;
+  status: "created" | "error";
+  error?: string;
+}
+
 export interface TenantAnalytics {
   ordersByStatus: Record<OrderStatus, number>;
   totalOrders: number;

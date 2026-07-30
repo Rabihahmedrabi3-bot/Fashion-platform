@@ -20,10 +20,17 @@ import { isUniqueViolation } from "../lib/dbErrors.js";
 import { BadRequestError, ConflictError, NotFoundError, UnauthorizedError } from "../lib/errors.js";
 import { imageUploadMiddleware, validateImageBuffer } from "../lib/imageUpload.js";
 import { requireParam } from "../lib/params.js";
+import {
+  buildImportTemplateWorkbook,
+  importProducts,
+  parseImportWorkbook,
+  productImportUploadMiddleware,
+} from "../lib/productImport.js";
 import { validateBody } from "../lib/validate.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/requirePermission.js";
 import { resolveTenantContext } from "../middleware/tenantContext.js";
+import { createCategoriesRepo } from "../repositories/categoriesRepo.js";
 import { createCollectionsRepo } from "../repositories/collectionsRepo.js";
 import { createInventoryRepo } from "../repositories/inventoryRepo.js";
 import { createProductsRepo, type ProductRow } from "../repositories/productsRepo.js";
@@ -169,6 +176,58 @@ export function createProductsRouter(deps: AppDependencies): Router {
       if (!updated) throw new NotFoundError("product not found");
 
       res.status(200).json(await buildProductWithVariants(deps.db, scope, updated));
+    }),
+  );
+
+  // --- Bulk import ---
+  // Both routes below are static segments ("import", "import/template") at the
+  // same path depth as the dynamic :productId routes above. Express matches
+  // path patterns in registration order (unlike React Router v6) - a
+  // merchant's product id is a uuid so it can never literally collide with
+  // "import", but any future same-depth dynamic route should be registered
+  // AFTER these two, not before, so it can't accidentally shadow them.
+
+  router.post(
+    "/:id/products/import",
+    requireAuth(deps),
+    resolveTenantContext(deps),
+    requirePermission(PERMISSION_KEYS.CATALOG_CREATE),
+    productImportUploadMiddleware.single("file"),
+    asyncHandler(async (req, res) => {
+      if (!req.tenantContext) throw new UnauthorizedError("tenant context not resolved");
+      if (!req.file) throw new BadRequestError("no file provided (field name: file)");
+      const scope: TenantScope = { tenantId: req.tenantContext.tenantId };
+
+      const rawRows = await parseImportWorkbook(req.file.buffer);
+      const results = await importProducts(deps.db, scope, rawRows);
+      res.status(200).json({ results });
+    }),
+  );
+
+  // Gated on CATALOG_CREATE, not CATALOG_READ like this router's other read
+  // endpoints - an intentional deviation, since only someone who can actually
+  // import needs the template.
+  router.get(
+    "/:id/products/import/template",
+    requireAuth(deps),
+    resolveTenantContext(deps),
+    requirePermission(PERMISSION_KEYS.CATALOG_CREATE),
+    asyncHandler(async (req, res) => {
+      if (!req.tenantContext) throw new UnauthorizedError("tenant context not resolved");
+      const scope: TenantScope = { tenantId: req.tenantContext.tenantId };
+
+      const [categories, collections] = await Promise.all([
+        createCategoriesRepo(deps.db, scope).list(),
+        createCollectionsRepo(deps.db, scope).list(),
+      ]);
+      const buffer = await buildImportTemplateWorkbook(
+        categories.map((category) => category.name),
+        collections.map((collection) => collection.name),
+      );
+
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", 'attachment; filename="product-import-template.xlsx"');
+      res.status(200).send(buffer);
     }),
   );
 
